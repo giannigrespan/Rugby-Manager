@@ -201,8 +201,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) {
       return rolePermissions['player']?.[section] ?? DEFAULT_ROLE_PERMISSIONS['player']?.[section] ?? true;
     }
-    // Full Administrator always has access to all sections
-    if (user.isAdmin || user.role === 'admin') {
+    // Full Administrator (Direttore Tecnico / Dirigente) always has access to all sections
+    if (user.isAdmin || user.role === 'direttore_tecnico') {
       return true;
     }
     const role = user.role || 'player';
@@ -433,7 +433,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const updated = {
           ...s,
           isAdmin,
-          role: isAdmin && s.role === 'player' ? 'admin' as UserRole : s.role
+          role: isAdmin && s.role === 'player' ? 'direttore_tecnico' as UserRole : s.role
         };
         targetMember = updated;
         return updated;
@@ -445,7 +445,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const updatedUser = {
         ...currentUser,
         isAdmin,
-        role: isAdmin && currentUser.role === 'player' ? 'admin' as UserRole : currentUser.role
+        role: isAdmin && currentUser.role === 'player' ? 'direttore_tecnico' as UserRole : currentUser.role
       };
       setCurrentUser(updatedUser);
       localStorage.setItem('rugby_current_user', JSON.stringify(updatedUser));
@@ -468,7 +468,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const updated = {
           ...s,
           role,
-          isAdmin: role === 'admin' ? true : s.isAdmin
+          isAdmin: role === 'direttore_tecnico' ? true : s.isAdmin
         };
         targetMember = updated;
         return updated;
@@ -480,7 +480,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const updatedUser = {
         ...currentUser,
         role,
-        isAdmin: role === 'admin' ? true : currentUser.isAdmin
+        isAdmin: role === 'direttore_tecnico' ? true : currentUser.isAdmin
       };
       setCurrentUser(updatedUser);
       localStorage.setItem('rugby_current_user', JSON.stringify(updatedUser));

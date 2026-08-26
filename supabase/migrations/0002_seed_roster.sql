@@ -3,8 +3,8 @@
 -- src/data/seedData.ts / localStorage.
 --
 -- Role mapping notes:
---  - "Direttore Sportivo" has no direct equivalent in the app's UserRole
---    enum, so it's mapped to 'assistant_coach' (closest staff-level role).
+--  - "Direttore Sportivo" (Zizzola) maps to 'direttore_tecnico', the
+--    dedicated full-access role added in 0003_rename_admin_role.sql.
 --  - Everyone marked "[merged] Tutto" in the sheet (full visibility) gets
 --    "isAdmin" = true, which makes isSectionVisibleForUser() bypass the
 --    per-role permission matrix regardless of their assigned role.
@@ -23,7 +23,7 @@
 
 insert into public.staff_users (id, email, name, role, "isAdmin", position, department, status, "createdAt")
 values
-  ('staff-001', 'fedezizzo10@gmail.com', 'Federico Zizzola', 'assistant_coach', false, 'Staff Tecnico', 'staff', 'fit', '2026-08-26T00:00:00.000Z'),
+  ('staff-001', 'fedezizzo10@gmail.com', 'Federico Zizzola', 'direttore_tecnico', true, 'Staff Tecnico', 'staff', 'fit', '2026-08-26T00:00:00.000Z'),
   ('staff-002', 'stefano.tonetto1969@gmail.com', 'Stefano Tonetto', 'head_coach', true, 'Staff Tecnico', 'staff', 'fit', '2026-08-26T00:00:00.000Z'),
   ('staff-003', 'alberto.tonetto@gmail.com', 'Alberto Tonetto', 'assistant_coach', true, 'Staff Tecnico', 'staff', 'fit', '2026-08-26T00:00:00.000Z'),
   ('staff-004', 'federico.l.maso@gmail.com', 'Federico Maso', 'assistant_coach', true, 'Staff Tecnico', 'staff', 'fit', '2026-08-26T00:00:00.000Z'),

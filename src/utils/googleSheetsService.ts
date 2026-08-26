@@ -47,8 +47,8 @@ export function detectRugbyRoleAndPosition(
   if (combined.includes('fisio') || combined.includes('physio') || combined.includes('mass') || combined.includes('medic') || combined.includes('dottor')) {
     return { role: 'physiotherapist', position: 'Staff Tecnico', department: 'staff' };
   }
-  if (combined.includes('admin') || combined.includes('dirigente') || combined.includes('manager') || combined.includes('team manager') || combined.includes('staff')) {
-    return { role: 'admin', position: 'Staff Tecnico', department: 'staff' };
+  if (combined.includes('admin') || combined.includes('dirigente') || combined.includes('direttore') || combined.includes('manager') || combined.includes('team manager') || combined.includes('staff')) {
+    return { role: 'direttore_tecnico', position: 'Staff Tecnico', department: 'staff' };
   }
 
   // Rugby Players Classification

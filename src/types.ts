@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'head_coach' | 'assistant_coach' | 'athletic_trainer' | 'physiotherapist' | 'player';
+export type UserRole = 'direttore_tecnico' | 'head_coach' | 'assistant_coach' | 'athletic_trainer' | 'physiotherapist' | 'player';
 
 export type RugbyDepartment = 'avanti' | 'trequarti' | 'staff';
 
@@ -259,7 +259,7 @@ export type ConfigurableSection =
 export type RolePermissionsMap = Record<UserRole, Record<ConfigurableSection, boolean>>;
 
 export const DEFAULT_ROLE_PERMISSIONS: RolePermissionsMap = {
-  admin: {
+  direttore_tecnico: {
     presenze: true,
     sessioni: true,
     calci: true,
