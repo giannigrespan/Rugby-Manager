@@ -2,17 +2,19 @@ import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { IndividualTrainingLog } from '../types';
-import { 
-  Dumbbell, 
-  Plus, 
-  CheckCircle, 
-  Flame, 
-  Clock, 
-  Award, 
-  User, 
-  Calendar, 
-  Activity, 
-  ShieldCheck 
+import { exportToCsv } from '../utils/csvExport';
+import {
+  Dumbbell,
+  Plus,
+  CheckCircle,
+  Flame,
+  Clock,
+  Award,
+  User,
+  Calendar,
+  Activity,
+  ShieldCheck,
+  Download
 } from 'lucide-react';
 
 export const IndividualTrainingsView: React.FC = () => {
@@ -54,6 +56,23 @@ export const IndividualTrainingsView: React.FC = () => {
     setNotes('');
   };
 
+  const handleExportCsv = () => {
+    exportToCsv(
+      `sedute_individuali_${new Date().toISOString().slice(0, 10)}.csv`,
+      ['Data', 'Atleta', 'Tipo', 'Durata (min)', 'RPE', 'Esercizi', 'Note', 'Verificato'],
+      individualLogs.map(log => [
+        log.date,
+        `"${log.playerName}"`,
+        `"${log.type}"`,
+        log.durationMin,
+        log.perceivedEffort,
+        `"${log.exercisesDone.replace(/"/g, "'")}"`,
+        `"${(log.notes || '').replace(/"/g, "'")}"`,
+        log.verifiedByCoach ? 'Sì' : 'No'
+      ])
+    );
+  };
+
   return (
     <div id="individual-trainings-container" className="space-y-6 animate-in fade-in duration-300">
       
@@ -76,14 +95,24 @@ export const IndividualTrainingsView: React.FC = () => {
           </div>
         </div>
 
-        <button
-          id="btn-log-individual-session"
-          onClick={() => setShowModal(true)}
-          className="px-4 py-2.5 bg-[#D4AF37] hover:bg-[#C09F30] text-black text-xs font-bold rounded-lg shadow-md flex items-center gap-2 transition-all active:scale-95"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Registra Allenamento Individuale</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            id="btn-export-individual-csv"
+            onClick={handleExportCsv}
+            className="flex items-center gap-1.5 px-3 py-2 bg-[#1D1D21] hover:bg-[#26262B] text-gray-300 hover:text-white rounded-lg border border-[#2A2A2E] text-xs font-medium transition-colors"
+          >
+            <Download className="w-3.5 h-3.5 text-[#D4AF37]" />
+            <span>Esporta CSV</span>
+          </button>
+          <button
+            id="btn-log-individual-session"
+            onClick={() => setShowModal(true)}
+            className="px-4 py-2.5 bg-[#D4AF37] hover:bg-[#C09F30] text-black text-xs font-bold rounded-lg shadow-md flex items-center gap-2 transition-all active:scale-95"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Registra Allenamento Individuale</span>
+          </button>
+        </div>
       </div>
 
       {/* Cards Grid */}
@@ -148,10 +177,16 @@ export const IndividualTrainingsView: React.FC = () => {
           <div className="bg-[#121214] border border-[#2A2A2E] rounded-xl w-full max-w-lg p-6 shadow-2xl space-y-4">
             
             <div className="flex items-center justify-between border-b border-[#2A2A2E] pb-3">
-              <h3 className="text-[#E0E0E1] font-bold text-base font-serif flex items-center gap-2">
-                <Dumbbell className="w-5 h-5 text-[#D4AF37]" />
-                Registra Seduta Individuale
-              </h3>
+              <div>
+                <h3 className="text-[#E0E0E1] font-bold text-base font-serif flex items-center gap-2">
+                  <Dumbbell className="w-5 h-5 text-[#D4AF37]" />
+                  Registra Seduta Individuale
+                </h3>
+                <p className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
+                  <Calendar className="w-3 h-3" />
+                  Data: {new Date().toLocaleDateString('it-IT')} (registrata automaticamente)
+                </p>
+              </div>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-white p-1">✕</button>
             </div>
 

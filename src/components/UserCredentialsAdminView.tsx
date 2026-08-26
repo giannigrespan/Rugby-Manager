@@ -134,9 +134,8 @@ const ALL_ROLES_CONFIG: RoleConfigItem[] = [
     role: 'direttore_tecnico',
     label: 'Direttore Tecnico / Dirigente',
     shortLabel: 'Direttore Tecnico',
-    subtitle: 'Accesso totale garantito a tutte le sezioni & credenziali',
-    badgeColor: 'bg-[#D4AF37] text-black border-[#D4AF37]',
-    isAdminAlways: true
+    subtitle: 'Presenze, Fisioterapia e Infortuni per default — configurabile',
+    badgeColor: 'bg-[#D4AF37] text-black border-[#D4AF37]'
   },
   {
     role: 'head_coach',
@@ -253,7 +252,6 @@ export const UserCredentialsAdminView: React.FC = () => {
   };
 
   const handleTogglePermission = async (role: UserRole, section: ConfigurableSection) => {
-    if (role === 'direttore_tecnico') return; // Direttore Tecnico is permanently unlocked
     const currentVal = rolePermissions[role]?.[section] ?? DEFAULT_ROLE_PERMISSIONS[role]?.[section] ?? true;
     const nextVal = !currentVal;
     await updateRolePermission(role, section, nextVal);
@@ -268,7 +266,6 @@ export const UserCredentialsAdminView: React.FC = () => {
   };
 
   const handleEnableAllForRole = async (role: UserRole) => {
-    if (role === 'direttore_tecnico') return;
     for (const section of CONFIGURABLE_SECTIONS_LIST) {
       await updateRolePermission(role, section.id, true);
     }

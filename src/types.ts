@@ -99,11 +99,14 @@ export interface RpeFeedback {
   playerId: string;
   playerName: string;
   rpe: number; // 1-10 (Borg CR10)
-  focusRating: number; // 1-10 (Livello di concentrazione percepito)
-  physicalFatigue: number; // 1-10 (Affaticamento muscolare)
-  muscleSoreness: number; // 1-10 (DOMS / Dolori muscolari)
-  mentalReadiness: number; // 1-10 (Prontezza mentale)
+  focusRating?: number; // 1-10 (Livello di concentrazione percepito) - legacy, opzionale
+  physicalFatigue?: number; // 1-10 (Affaticamento muscolare) - legacy, opzionale
+  muscleSoreness?: number; // 1-10 (DOMS / Dolori muscolari) - legacy, opzionale
+  mentalReadiness?: number; // 1-10 (Prontezza mentale) - legacy, opzionale
   sessionLoad: number; // sRPE = RPE * duration in min (es. 7 * 90 = 630 AU)
+  whatWentWell?: string; // Cosa è andato bene nell'allenamento
+  difficulties?: string; // Quali difficoltà ho incontrato
+  otherNotes?: string; // Altre segnalazioni
   notes?: string;
   submittedAt: string;
 }
@@ -124,15 +127,18 @@ export interface InjuryReport {
   updatedAt: string;
 }
 
+export type PhysioHealthStatus = 'idoneo_100' | 'idoneo_limitazioni' | 'affaticata' | 'recupero_fisioterapia' | 'infortunata';
+
 export interface PhysioNote {
   id: string;
   playerId: string;
   playerName: string;
   date: string;
   physioName: string;
+  healthStatus: PhysioHealthStatus;
   sessionType: 'Valutazione Iniziale' | 'Trattamento Manuale' | 'Differenziato Campo' | 'Controllo Pre-Gara' | 'Test RTP';
-  diagnosis: string;
-  treatment: string;
+  diagnosis: string; // Resoconto Stato di Salute (Sintomi, Diagnosi, Valutazione Funzionale)
+  treatment: string; // Suggerimenti Dati per Recupero, Riposo e Gestione Allenamenti
   exercisePlan: string;
   rtpStatus: string;
   isConfidential?: boolean;
@@ -150,18 +156,20 @@ export interface IndividualTask {
   id: string;
   title: string;
   description: string;
-  category: TaskCategory;
+  category?: TaskCategory; // deprecato, non più richiesto in UI
   assignedToType: 'all' | 'avanti' | 'trequarti' | 'individual';
   assignedPlayerIds: string[];
   dueDate: string; // YYYY-MM-DD
   frequency: 'daily' | 'weekly' | 'one_off';
   priority: 'normal' | 'high' | 'urgent';
+  goalTarget?: number; // obiettivo numerico impostato dallo staff
   createdBy: string;
   createdAt: string;
   completions: Record<string, {
     completed: boolean;
     completedAt?: string;
     note?: string;
+    progress?: number; // progressivo registrato dall'atleta verso goalTarget
   }>;
 }
 
@@ -261,14 +269,14 @@ export type RolePermissionsMap = Record<UserRole, Record<ConfigurableSection, bo
 export const DEFAULT_ROLE_PERMISSIONS: RolePermissionsMap = {
   direttore_tecnico: {
     presenze: true,
-    sessioni: true,
-    calci: true,
-    rpe_focus: true,
+    sessioni: false,
+    calci: false,
+    rpe_focus: false,
     infortuni: true,
     fisioterapia: true,
-    individuali: true,
-    compiti: true,
-    rosa: true
+    individuali: false,
+    compiti: false,
+    rosa: false
   },
   head_coach: {
     presenze: true,

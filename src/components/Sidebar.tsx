@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, canAccessCredentialsPanel } from '../context/AuthContext';
 import { 
   Users, 
   Calendar, 
@@ -188,7 +188,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     ...group,
     items: group.items.filter(item => {
       if (item.id === 'credenziali') {
-        return isAdmin;
+        return canAccessCredentialsPanel(currentUser);
       }
       return isSectionVisibleForUser(item.id as any, currentUser);
     })

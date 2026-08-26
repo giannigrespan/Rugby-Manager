@@ -43,7 +43,7 @@ interface DataContextType {
   deletePhysioNote: (id: string) => Promise<void>;
   createTask: (task: Omit<IndividualTask, 'id' | 'createdAt' | 'completions'>) => Promise<void>;
   updateTask: (task: IndividualTask) => Promise<void>;
-  toggleTaskCompletion: (taskId: string, playerId: string, completed: boolean, note?: string) => Promise<void>;
+  toggleTaskCompletion: (taskId: string, playerId: string, completed: boolean, note?: string, progress?: number) => Promise<void>;
   deleteTask: (taskId: string) => Promise<void>;
   addKickingSession: (session: Omit<KickingSession, 'id'>) => Promise<void>;
   addIndividualLog: (log: Omit<IndividualTrainingLog, 'id'>) => Promise<void>;
@@ -540,7 +540,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     sendPushNotification({
       title: `🎯 Nuovo Compito Assegnato: ${newTask.title}`,
-      message: `Scadenza: ${newTask.dueDate}. Categoria: ${newTask.category}`,
+      message: `Scadenza: ${newTask.dueDate}.`,
       targetRole: 'players',
       type: 'task_assigned'
     });
@@ -575,7 +575,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const toggleTaskCompletion = async (taskId: string, playerId: string, completed: boolean, note?: string) => {
+  const toggleTaskCompletion = async (taskId: string, playerId: string, completed: boolean, note?: string, progress?: number) => {
     let updatedTask: IndividualTask | undefined;
 
     setTasks(prev => prev.map(t => {
@@ -587,7 +587,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             [playerId]: {
               completed,
               completedAt: completed ? new Date().toISOString() : undefined,
-              note: note || t.completions[playerId]?.note
+              note: note || t.completions[playerId]?.note,
+              progress: progress !== undefined ? progress : t.completions[playerId]?.progress
             }
           }
         };

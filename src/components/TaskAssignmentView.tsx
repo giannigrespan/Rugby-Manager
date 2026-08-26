@@ -1,21 +1,16 @@
 import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
-import { IndividualTask, TaskCategory } from '../types';
-import { 
-  Target, 
-  Plus, 
-  CheckCircle2, 
-  Clock, 
-  Video, 
-  Dumbbell, 
-  Crosshair, 
-  Flame, 
-  Activity, 
-  Apple, 
-  Trash2, 
-  Users, 
-  AlertCircle 
+import { exportToCsv } from '../utils/csvExport';
+import { IndividualTask } from '../types';
+import {
+  Target,
+  Plus,
+  CheckCircle2,
+  Clock,
+  Trash2,
+  Users,
+  Download
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -28,15 +23,22 @@ export const TaskAssignmentView: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState<TaskCategory>('video_analysis');
   const [assignedToType, setAssignedToType] = useState<IndividualTask['assignedToType']>('all');
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
   const [dueDate, setDueDate] = useState(new Date(Date.now() + 86400000 * 3).toISOString().slice(0, 10));
   const [frequency, setFrequency] = useState<IndividualTask['frequency']>('weekly');
   const [priority, setPriority] = useState<IndividualTask['priority']>('high');
+  const [goalTarget, setGoalTarget] = useState<string>('');
 
   const [completionNote, setCompletionNote] = useState('');
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
+  const [progressInputs, setProgressInputs] = useState<Record<string, string>>({});
+
+  const togglePlayerSelection = (playerId: string) => {
+    setSelectedPlayerIds(prev =>
+      prev.includes(playerId) ? prev.filter(id => id !== playerId) : [...prev, playerId]
+    );
+  };
 
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,12 +58,12 @@ export const TaskAssignmentView: React.FC = () => {
     await createTask({
       title,
       description,
-      category,
       assignedToType,
       assignedPlayerIds: targetIds,
       dueDate,
       frequency,
       priority,
+      goalTarget: goalTarget.trim() ? Number(goalTarget) : undefined,
       createdBy: currentUser?.name || 'Staff Tecnico'
     });
 
@@ -69,6 +71,7 @@ export const TaskAssignmentView: React.FC = () => {
     setTitle('');
     setDescription('');
     setSelectedPlayerIds([]);
+    setGoalTarget('');
   };
 
   const handleToggle = async (task: IndividualTask, isCompleted: boolean) => {
@@ -88,20 +91,39 @@ export const TaskAssignmentView: React.FC = () => {
     setCompletionNote('');
   };
 
-  const getCategoryIcon = (cat: TaskCategory) => {
-    switch (cat) {
-      case 'video_analysis': return <Video className="w-4 h-4 text-[#D4AF37]" />;
-      case 'gym_strength': return <Dumbbell className="w-4 h-4 text-[#D4AF37]" />;
-      case 'kicking_practice': return <Crosshair className="w-4 h-4 text-[#D4AF37]" />;
-      case 'mobility_recovery': return <Flame className="w-4 h-4 text-[#D4AF37]" />;
-      case 'nutrition_hydration': return <Apple className="w-4 h-4 text-[#D4AF37]" />;
-      default: return <Target className="w-4 h-4 text-[#D4AF37]" />;
-    }
+  const handleSaveProgress = async (task: IndividualTask) => {
+    const raw = progressInputs[task.id];
+    if (raw === undefined || raw.trim() === '') return;
+    const progress = Number(raw);
+    const existing = task.completions?.[currentUserId];
+    await toggleTaskCompletion(task.id, currentUserId, existing?.completed || false, existing?.note, progress);
+    setProgressInputs(prev => ({ ...prev, [task.id]: '' }));
+  };
+
+  const handleExportCsv = () => {
+    const rows = tasks.map(t => {
+      const completedCount = Object.values(t.completions || {}).filter((c: any) => c?.completed).length;
+      return [
+        t.title,
+        `"${t.description.replace(/"/g, "'")}"`,
+        t.assignedToType,
+        t.assignedPlayerIds.length,
+        completedCount,
+        t.dueDate,
+        t.priority,
+        t.goalTarget ?? ''
+      ];
+    });
+    exportToCsv(
+      `compiti_rugby_${new Date().toISOString().slice(0, 10)}.csv`,
+      ['Titolo', 'Descrizione', 'Destinatari', 'Atlete Assegnate', 'Completate', 'Scadenza', 'Priorità', 'Obiettivo'],
+      rows
+    );
   };
 
   return (
     <div id="task-assignment-container" className="space-y-6 animate-in fade-in duration-300">
-      
+
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 bg-[#121214] border border-[#2A2A2E] rounded-xl p-6 shadow-2xl">
         <div className="flex items-center gap-3">
@@ -121,16 +143,28 @@ export const TaskAssignmentView: React.FC = () => {
           </div>
         </div>
 
-        {isStaff && (
-          <button
-            id="btn-create-task-modal"
-            onClick={() => setShowModal(true)}
-            className="px-4 py-2.5 bg-[#D4AF37] hover:bg-[#C09F30] text-black text-xs font-bold rounded-lg shadow-md flex items-center gap-2 transition-all active:scale-95"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Nuovo Compito (Staff)</span>
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {isStaff && (
+            <button
+              id="btn-export-tasks-csv"
+              onClick={handleExportCsv}
+              className="flex items-center gap-1.5 px-3 py-2 bg-[#1D1D21] hover:bg-[#26262B] text-gray-300 hover:text-white rounded-lg border border-[#2A2A2E] text-xs font-medium transition-colors"
+            >
+              <Download className="w-3.5 h-3.5 text-[#D4AF37]" />
+              <span>Esporta CSV</span>
+            </button>
+          )}
+          {isStaff && (
+            <button
+              id="btn-create-task-modal"
+              onClick={() => setShowModal(true)}
+              className="px-4 py-2.5 bg-[#D4AF37] hover:bg-[#C09F30] text-black text-xs font-bold rounded-lg shadow-md flex items-center gap-2 transition-all active:scale-95"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Nuovo Compito (Staff)</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Tasks List */}
@@ -138,29 +172,21 @@ export const TaskAssignmentView: React.FC = () => {
         {tasks.map(task => {
           const isUserAssigned = task.assignedPlayerIds.includes(currentUserId);
           const isUserCompleted = !!task.completions?.[currentUserId]?.completed;
+          const userProgress = task.completions?.[currentUserId]?.progress;
           const completedCount = Object.values(task.completions || {}).filter((c: any) => c?.completed).length;
           const totalAssigned = task.assignedPlayerIds.length || 1;
           const pct = Math.round((completedCount / totalAssigned) * 100);
 
           return (
-            <div 
-              key={task.id} 
+            <div
+              key={task.id}
               className={`bg-[#121214] border rounded-xl p-5 shadow-xl space-y-4 transition-all flex flex-col justify-between ${
                 isUserCompleted ? 'border-emerald-500/40 bg-emerald-950/10' : 'border-[#2A2A2E] hover:border-[#D4AF37]/40'
               }`}
             >
               <div className="space-y-3">
-                {/* Badge Category & Priority */}
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="p-1.5 rounded-lg bg-[#1D1D21] border border-[#2A2A2E]">
-                      {getCategoryIcon(task.category)}
-                    </span>
-                    <span className="text-xs font-bold uppercase tracking-wider text-gray-300">
-                      {task.category.replace('_', ' ')}
-                    </span>
-                  </div>
-
+                {/* Priority badge */}
+                <div className="flex items-start justify-end">
                   <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
                     task.priority === 'urgent' ? 'bg-red-500/20 text-red-300 border-red-500/40' :
                     task.priority === 'high' ? 'bg-[#D4AF37]/20 text-[#D4AF37] border-[#D4AF37]/40' :
@@ -194,12 +220,42 @@ export const TaskAssignmentView: React.FC = () => {
                     <span className="font-bold text-[#D4AF37]">{completedCount} su {totalAssigned} ({pct}%)</span>
                   </div>
                   <div className="w-full bg-[#1D1D21] h-2 rounded-full overflow-hidden border border-[#2A2A2E]">
-                    <div 
-                      className="bg-gradient-to-r from-[#D4AF37] to-emerald-500 h-full rounded-full transition-all" 
+                    <div
+                      className="bg-gradient-to-r from-[#D4AF37] to-emerald-500 h-full rounded-full transition-all"
                       style={{ width: `${pct}%` }}
                     />
                   </div>
                 </div>
+
+                {/* Goal tracking (obiettivo numerico) */}
+                {task.goalTarget !== undefined && task.goalTarget !== null && (
+                  <div className="bg-[#1D1D21] p-2.5 rounded-lg border border-[#2A2A2E] space-y-1.5">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-400">Obiettivo:</span>
+                      <span className="font-bold text-[#E0E0E1]">
+                        {userProgress ?? 0} / {task.goalTarget}
+                      </span>
+                    </div>
+                    {isUserAssigned && (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min={0}
+                          placeholder="Registra progresso..."
+                          value={progressInputs[task.id] || ''}
+                          onChange={(e) => setProgressInputs(prev => ({ ...prev, [task.id]: e.target.value }))}
+                          className="flex-1 px-2 py-1.5 bg-[#0A0A0B] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] text-xs focus:outline-none focus:border-[#D4AF37]"
+                        />
+                        <button
+                          onClick={() => handleSaveProgress(task)}
+                          className="px-3 py-1.5 bg-[#D4AF37] hover:bg-[#C09F30] text-black text-xs font-bold rounded-lg"
+                        >
+                          Salva
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Player Check-Off Action & Staff controls */}
@@ -209,7 +265,7 @@ export const TaskAssignmentView: React.FC = () => {
                     onClick={() => handleToggle(task, isUserCompleted)}
                     disabled={isSyncing}
                     className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all active:scale-95 shadow-md ${
-                      isUserCompleted 
+                      isUserCompleted
                         ? 'bg-emerald-600/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-600/30'
                         : 'bg-[#D4AF37] hover:bg-[#C09F30] text-black shadow-md'
                     }`}
@@ -248,7 +304,7 @@ export const TaskAssignmentView: React.FC = () => {
       {showModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
           <div className="bg-[#121214] border border-[#2A2A2E] rounded-xl w-full max-w-lg p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            
+
             <div className="flex items-center justify-between border-b border-[#2A2A2E] pb-3">
               <h3 className="text-[#E0E0E1] font-bold text-base font-serif flex items-center gap-2">
                 <Target className="w-5 h-5 text-[#D4AF37]" />
@@ -258,7 +314,7 @@ export const TaskAssignmentView: React.FC = () => {
             </div>
 
             <form onSubmit={handleCreateTask} className="space-y-4 text-xs">
-              
+
               <div>
                 <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[11px]">Titolo Compito:</label>
                 <input
@@ -285,35 +341,53 @@ export const TaskAssignmentView: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[11px]">Categoria:</label>
-                  <select
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value as any)}
-                    className="w-full px-3 py-2 bg-[#1D1D21] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] focus:outline-none focus:border-[#D4AF37]"
-                  >
-                    <option value="video_analysis">Analisi Video</option>
-                    <option value="gym_strength">Forza & Palestra</option>
-                    <option value="kicking_practice">Esercizi Calci</option>
-                    <option value="mobility_recovery">Mobilità & Recupero</option>
-                    <option value="nutrition_hydration">Nutrizione & Idratazione</option>
-                    <option value="tactical_quiz">Quiz Tattico</option>
-                  </select>
-                </div>
-
-                <div>
                   <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[11px]">Destinatari:</label>
                   <select
                     value={assignedToType}
                     onChange={(e) => setAssignedToType(e.target.value as any)}
                     className="w-full px-3 py-2 bg-[#1D1D21] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] focus:outline-none focus:border-[#D4AF37]"
                   >
-                    <option value="all">Tutta la Squadra (44)</option>
+                    <option value="all">Tutta la Squadra ({players.length})</option>
                     <option value="avanti">Solo Reparto Avanti</option>
                     <option value="trequarti">Solo Reparto Trequarti</option>
                     <option value="individual">Atlete Selezionate</option>
                   </select>
                 </div>
+
+                <div>
+                  <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[11px]">Obiettivo Numerico (facoltativo):</label>
+                  <input
+                    type="number"
+                    min={0}
+                    placeholder="es. 50"
+                    value={goalTarget}
+                    onChange={(e) => setGoalTarget(e.target.value)}
+                    className="w-full px-3 py-2 bg-[#1D1D21] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] placeholder-gray-500 focus:outline-none focus:border-[#D4AF37]"
+                  />
+                </div>
               </div>
+
+              {assignedToType === 'individual' && (
+                <div>
+                  <label className="block font-semibold text-gray-300 mb-1.5 uppercase tracking-wider text-[11px]">Seleziona Atlete:</label>
+                  <div className="max-h-40 overflow-y-auto grid grid-cols-2 gap-1.5 bg-[#1D1D21] border border-[#2A2A2E] rounded-lg p-2.5 scrollbar-thin">
+                    {players.map(p => (
+                      <label key={p.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-[#26262B] cursor-pointer text-[11px]">
+                        <input
+                          type="checkbox"
+                          checked={selectedPlayerIds.includes(p.id)}
+                          onChange={() => togglePlayerSelection(p.id)}
+                          className="accent-[#D4AF37]"
+                        />
+                        <span className="text-gray-300 truncate">#{p.jerseyNumber || '-'} {p.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {selectedPlayerIds.length === 0 && (
+                    <p className="text-[10px] text-amber-400 mt-1">Seleziona almeno un'atleta destinataria.</p>
+                  )}
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -351,8 +425,8 @@ export const TaskAssignmentView: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={isSyncing}
-                  className="px-4 py-2 bg-[#D4AF37] hover:bg-[#C09F30] text-black font-bold rounded-lg shadow-md transition-all active:scale-95"
+                  disabled={isSyncing || (assignedToType === 'individual' && selectedPlayerIds.length === 0)}
+                  className="px-4 py-2 bg-[#D4AF37] hover:bg-[#C09F30] text-black font-bold rounded-lg shadow-md transition-all active:scale-95 disabled:opacity-50"
                 >
                   Crea e Notifica Squadra
                 </button>
