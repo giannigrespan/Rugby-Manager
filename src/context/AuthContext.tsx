@@ -83,7 +83,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // fallback
       }
     }
-    return INITIAL_STAFF[0] || null;
+    // No saved session: start logged out rather than defaulting to a fixed
+    // staff member (previously INITIAL_STAFF[0]/Gianni), which made every
+    // visitor who hadn't actually logged in appear to be that person.
+    return null;
   });
 
   const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null);
