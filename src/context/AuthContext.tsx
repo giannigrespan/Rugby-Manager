@@ -16,6 +16,8 @@ interface AuthContextType {
   staffUsers: UserProfile[];
   googleAccessToken: string | null;
   isLoading: boolean;
+  authError: string | null;
+  clearAuthError: () => void;
   rolePermissions: RolePermissionsMap;
   isSectionVisibleForUser: (section: ConfigurableSection, user?: UserProfile | null) => boolean;
   updateRolePermission: (role: UserRole, section: ConfigurableSection, enabled: boolean) => Promise<void>;
@@ -92,6 +94,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null);
   const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const clearAuthError = () => setAuthError(null);
 
   // Role permissions matrix state
   const [rolePermissions, setRolePermissions] = useState<RolePermissionsMap>(() => {
@@ -349,23 +353,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.warn('Supabase user profile query warning:', err);
       }
 
-      // 5. Default new user profile
-      const newProfile: UserProfile = {
-        id: user.id,
-        email: user.email,
-        name: (user.user_metadata?.full_name as string) || user.email.split('@')[0],
-        role: 'player',
-        position: 'Primo Centro (12)',
-        department: 'trequarti',
-        status: 'fit',
-        createdAt: new Date().toISOString()
-      };
-      setCurrentUser(newProfile);
-      localStorage.setItem('rugby_current_user', JSON.stringify(newProfile));
-      supabase.from('user_accounts').upsert(newProfile).then(({ error }) => {
-        if (error) console.warn('New profile user_accounts upsert warning:', error);
-      });
+      // 5. Not found anywhere: access is restricted to players/staff already
+      // loaded into the roster, so deny access instead of creating a new
+      // generic profile for whoever happens to sign in.
+      setCurrentUser(null);
+      localStorage.removeItem('rugby_current_user');
+      setAuthError(
+        `L'indirizzo ${user.email} non risulta registrato nella rosa o nello staff del club. Contatta lo staff tecnico per essere aggiunto.`
+      );
+      inMemoryGoogleToken = null;
+      setGoogleAccessToken(null);
       setIsLoading(false);
+      // Deferred: calling supabase.auth.* from inside the auth state change
+      // callback (which is what invokes resolveProfile) can deadlock on the
+      // client's internal lock, so this runs on the next tick instead.
+      setTimeout(() => {
+        supabase.auth.signOut();
+      }, 0);
     };
 
     // Resolve whatever session is already active on load
@@ -585,9 +589,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const registerWithEmail = async (email: string, pass: string, name: string, role: UserRole) => {
+  const registerWithEmail = async (email: string, pass: string, name: string, _role: UserRole) => {
     setIsLoading(true);
     try {
+      const userEmail = email.toLowerCase();
+      const isRootAdmin = userEmail === 'gianni.grespan@gmail.com';
+
+      // L'accesso è riservato a chi è già nella rosa o nello staff: verifica
+      // la corrispondenza PRIMA di creare l'account Supabase, così non si
+      // creano account "orfani" per email non riconosciute.
+      const foundStaff = !isRootAdmin ? staffUsersRef.current.find(u => u.email.toLowerCase() === userEmail) : undefined;
+      let foundPlayer: UserProfile | undefined;
+      if (!isRootAdmin && !foundStaff) {
+        const { data: playerRows } = await supabase.from('players').select('*').eq('email', userEmail).limit(1);
+        foundPlayer = playerRows?.[0] as UserProfile | undefined;
+      }
+
+      if (!isRootAdmin && !foundStaff && !foundPlayer) {
+        throw new Error(
+          `L'indirizzo ${email} non risulta registrato nella rosa o nello staff del club. Contatta lo staff tecnico per essere aggiunto prima di registrarti.`
+        );
+      }
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password: pass,
@@ -595,21 +618,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       if (error) throw error;
       if (!data.user) throw new Error('Registrazione non riuscita.');
-
-      const userEmail = email.toLowerCase();
-      const isRootAdmin = userEmail === 'gianni.grespan@gmail.com';
-
-      // Se questa email corrisponde già a un membro dello staff o della rosa
-      // (es. importato dal foglio Google), riusa quel profilo invece di
-      // crearne uno generico: così chi non ha una mail Google può comunque
-      // registrarsi con email e password e vedere il proprio ruolo reale,
-      // esattamente come chi accede con Google.
-      const foundStaff = !isRootAdmin ? staffUsers.find(u => u.email.toLowerCase() === userEmail) : undefined;
-      let foundPlayer: UserProfile | undefined;
-      if (!isRootAdmin && !foundStaff) {
-        const { data: playerRows } = await supabase.from('players').select('*').eq('email', userEmail).limit(1);
-        foundPlayer = playerRows?.[0] as UserProfile | undefined;
-      }
 
       const newProf: UserProfile = isRootAdmin
         ? {
@@ -624,42 +632,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             createdAt: new Date().toISOString(),
             notes: 'Responsabile e Amministratore Rugby Villorba'
           }
-        : foundStaff || foundPlayer || {
-            id: data.user.id,
-            email,
-            name,
-            role,
-            isAdmin: false,
-            position: role === 'player' ? 'Ala Destra (14)' : 'Staff Tecnico',
-            department: role === 'player' ? 'trequarti' : 'staff',
-            status: 'fit',
-            createdAt: new Date().toISOString()
-          };
+        : (foundStaff || foundPlayer)!;
 
       setCurrentUser(newProf);
       localStorage.setItem('rugby_current_user', JSON.stringify(newProf));
       await supabase.from('user_accounts').upsert({ ...newProf, id: data.user.id });
       if (isRootAdmin) {
         await supabase.from('staff_users').upsert({ ...newProf, id: 'staff-gianni-grespan' });
-      } else if (!foundStaff && !foundPlayer && role !== 'player') {
-        await supabase.from('staff_users').upsert(newProf);
       }
-    } catch (err: any) {
-      // Local fallback
-      const isRootAdmin = email.toLowerCase() === 'gianni.grespan@gmail.com';
-      const newProf: UserProfile = {
-        id: 'user-' + Date.now(),
-        email,
-        name,
-        role: isRootAdmin ? 'head_coach' : role,
-        isAdmin: isRootAdmin,
-        position: role === 'player' ? 'Ala Destra (14)' : 'Staff Tecnico',
-        department: role === 'player' ? 'trequarti' : 'staff',
-        status: 'fit',
-        createdAt: new Date().toISOString()
-      };
-      setCurrentUser(newProf);
-      localStorage.setItem('rugby_current_user', JSON.stringify(newProf));
     } finally {
       setIsLoading(false);
     }
@@ -692,6 +672,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       staffUsers,
       googleAccessToken,
       isLoading,
+      authError,
+      clearAuthError,
       rolePermissions,
       isSectionVisibleForUser,
       updateRolePermission,

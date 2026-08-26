@@ -20,12 +20,14 @@ interface AuthModalProps {
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
-  const { 
-    currentUser, 
-    loginWithGoogle, 
-    loginWithEmail, 
-    registerWithEmail, 
-    logout
+  const {
+    currentUser,
+    loginWithGoogle,
+    loginWithEmail,
+    registerWithEmail,
+    logout,
+    authError,
+    clearAuthError
   } = useAuth();
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
@@ -36,6 +38,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
+
+  const handleClose = () => {
+    clearAuthError();
+    onClose();
+  };
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,7 +83,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         {/* Brand Banner in Modal */}
         <div className="flex items-center justify-between border-b border-[#2A2A2E] pb-4">
           <VillorbaLogo size="md" colorMode="gold" showSubtitle={true} />
-          <button onClick={onClose} className="text-gray-400 hover:text-white p-1.5 rounded-lg hover:bg-[#1D1D21] transition-colors">✕</button>
+          <button onClick={handleClose} className="text-gray-400 hover:text-white p-1.5 rounded-lg hover:bg-[#1D1D21] transition-colors">✕</button>
         </div>
 
         {/* Header Title */}
@@ -91,6 +98,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             <p className="text-[11px] text-gray-400">Autenticazione Cloud Supabase & Google</p>
           </div>
         </div>
+
+        {authError && (
+          <div className="p-3 bg-amber-950/60 border border-amber-500/40 rounded-xl text-amber-200 text-xs flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>{authError}</span>
+          </div>
+        )}
 
         {error && (
           <div className="p-3 bg-red-950/80 border border-red-500/40 rounded-xl text-red-200 text-xs flex items-center gap-2">
@@ -128,7 +142,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                 Disconnetti Account
               </button>
               <button
-                onClick={onClose}
+                onClick={handleClose}
                 className="px-4 py-2.5 bg-[#1D1D21] hover:bg-[#26262B] text-gray-300 font-semibold rounded-lg border border-[#2A2A2E]"
               >
                 Chiudi

@@ -32,8 +32,17 @@ const AppContent: React.FC = () => {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
 
   const { notifications, cloudSyncStatus, players } = useData();
-  const { currentUser } = useAuth();
+  const { currentUser, authError } = useAuth();
   const unreadNotifsCount = notifications.filter(n => currentUser && !n.readBy.includes(currentUser.id)).length;
+
+  // Reopen the auth modal after a Google sign-in redirect if access was
+  // denied (the redirect reloads the page, so the modal isn't open by
+  // default) so the user actually sees why they were signed back out.
+  useEffect(() => {
+    if (authError) {
+      setIsAuthOpen(true);
+    }
+  }, [authError]);
 
   // Handle URL query parameters or hash for direct OAuth verification links (e.g. ?page=privacy or #/privacy)
   useEffect(() => {
