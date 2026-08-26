@@ -8,26 +8,48 @@ import {
   UserProfile, 
   RugbyDepartment 
 } from '../types';
-import { 
-  Search, 
-  Filter, 
-  CheckCircle2, 
-  Clock, 
-  AlertTriangle, 
-  XCircle, 
-  Bandage, 
-  Download, 
-  Check, 
-  Edit3, 
+import {
+  Search,
+  Filter,
+  CheckCircle2,
+  Clock,
+  AlertTriangle,
+  XCircle,
+  Bandage,
+  Download,
+  Check,
+  Edit3,
   FileSpreadsheet,
   ChevronRight,
   ShieldAlert,
-  Info
+  Info,
+  Lock,
+  Unlock,
+  CalendarClock
 } from 'lucide-react';
 
+// Monday (start) of the ISO week containing the given YYYY-MM-DD date
+const getMondayOfWeek = (dateStr: string): Date => {
+  const d = new Date(`${dateStr}T00:00:00`);
+  const day = d.getDay(); // 0 = Sunday ... 6 = Saturday
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diffToMonday);
+  return d;
+};
+
+const formatItDate = (d: Date): string => d.toLocaleDateString('it-IT', { day: '2-digit', month: 'long' });
+
 export const AttendanceMatrixView: React.FC = () => {
-  const { players, sessions, attendances, updateAttendance, bulkMarkSessionAttendance, isSyncing } = useData();
+  const { players, sessions, attendances, updateAttendance, bulkMarkSessionAttendance, isSyncing, attendanceWindowOpen, setAttendanceWindowOpen } = useData();
   const { currentUser } = useAuth();
+
+  const [selfDeclareCell, setSelfDeclareCell] = useState<{
+    recordId: string;
+    sessionTitle: string;
+    sessionDate: string;
+    currentStatus: AttendanceStatus;
+    note: string;
+  } | null>(null);
 
   const [selectedDepartment, setSelectedDepartment] = useState<'all' | 'avanti' | 'trequarti'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -134,25 +156,48 @@ export const AttendanceMatrixView: React.FC = () => {
     }
   };
 
+  // A player can self-declare only on her own row, only for sessions not
+  // yet played, and only while the coaches keep the window open.
+  const canSelfDeclare = (player: UserProfile, session: TrainingSession) =>
+    !isStaff && currentUser?.id === player.id && session.status === 'scheduled' && attendanceWindowOpen;
+
   const handleCellClick = (record: AttendanceRecord | undefined, player: UserProfile, session: TrainingSession) => {
-    if (!isStaff) return;
     const currentStatus = record ? record.status : (player.status === 'injured' ? 'injured_diff' : 'present');
     const recId = record ? record.id : `att-${session.id}-${player.id}`;
-    
-    setEditingCell({
-      recordId: recId,
-      playerName: player.name,
-      sessionTitle: session.title,
-      currentStatus,
-      notes: record?.staffNotes || '',
-      lateMin: record?.lateMinutes || (currentStatus === 'late' ? 15 : 0)
-    });
+
+    if (isStaff) {
+      setEditingCell({
+        recordId: recId,
+        playerName: player.name,
+        sessionTitle: session.title,
+        currentStatus,
+        notes: record?.staffNotes || '',
+        lateMin: record?.lateMinutes || (currentStatus === 'late' ? 15 : 0)
+      });
+      return;
+    }
+
+    if (canSelfDeclare(player, session)) {
+      setSelfDeclareCell({
+        recordId: recId,
+        sessionTitle: session.title,
+        sessionDate: session.date,
+        currentStatus: currentStatus === 'late' || currentStatus === 'injured_diff' ? 'present' : currentStatus,
+        note: record?.staffNotes || ''
+      });
+    }
   };
 
   const saveCellEdit = async () => {
     if (!editingCell) return;
     await updateAttendance(editingCell.recordId, editingCell.currentStatus, editingCell.notes, editingCell.lateMin);
     setEditingCell(null);
+  };
+
+  const saveSelfDeclare = async () => {
+    if (!selfDeclareCell) return;
+    await updateAttendance(selfDeclareCell.recordId, selfDeclareCell.currentStatus, selfDeclareCell.note);
+    setSelfDeclareCell(null);
   };
 
   const exportAttendanceCSV = () => {
@@ -176,9 +221,50 @@ export const AttendanceMatrixView: React.FC = () => {
     document.body.removeChild(link);
   };
 
+  const currentWeekMonday = formatItDate(getMondayOfWeek(new Date().toISOString().slice(0, 10)));
+
   return (
     <div id="attendance-matrix-container" className="space-y-6 animate-in fade-in duration-300">
-      
+
+      {/* Attendance Self-Declaration Window Banner */}
+      <div className={`rounded-xl p-4 shadow-xl flex flex-wrap items-center justify-between gap-3 border ${
+        attendanceWindowOpen
+          ? 'bg-emerald-950/30 border-emerald-500/40'
+          : 'bg-rose-950/30 border-rose-500/40'
+      }`}>
+        <div className="flex items-center gap-3">
+          <div className={`p-2 rounded-lg ${attendanceWindowOpen ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
+            {attendanceWindowOpen ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+          </div>
+          <div>
+            <p className="text-xs font-bold text-[#E0E0E1] flex items-center gap-2">
+              Inserimento Presenze Atlete: {attendanceWindowOpen ? 'APERTO' : 'CHIUSO'}
+            </p>
+            <p className="text-[11px] text-gray-400 flex items-center gap-1.5 mt-0.5">
+              <CalendarClock className="w-3 h-3" />
+              {attendanceWindowOpen
+                ? `Le atlete confermano presenza/assenza alle sessioni programmate entro lunedì ${currentWeekMonday}`
+                : 'Le atlete non possono più modificare la propria presenza finché lo staff non riapre la finestra'}
+            </p>
+          </div>
+        </div>
+
+        {isStaff && (
+          <button
+            id="btn-toggle-attendance-window"
+            onClick={() => setAttendanceWindowOpen(!attendanceWindowOpen, currentUser?.name)}
+            className={`px-3.5 py-2 text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-md transition-all active:scale-95 ${
+              attendanceWindowOpen
+                ? 'bg-rose-600 hover:bg-rose-500 text-white'
+                : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+            }`}
+          >
+            {attendanceWindowOpen ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+            <span>{attendanceWindowOpen ? 'Blocca Inserimento' : 'Sblocca Inserimento'}</span>
+          </button>
+        )}
+      </div>
+
       {/* Header & Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         <div className="bg-[#121214] border border-[#2A2A2E] rounded-xl p-5 shadow-sm">
@@ -362,7 +448,11 @@ export const AttendanceMatrixView: React.FC = () => {
         </div>
         <p className="text-[11px] text-[#D4AF37] italic flex items-center gap-1">
           <Info className="w-3.5 h-3.5" />
-          {isStaff ? 'Clicca su una casella per modificare stato, note o minuti di ritardo' : 'Visualizzazione presenze rosa'}
+          {isStaff
+            ? 'Clicca su una casella per modificare stato, note o minuti di ritardo'
+            : attendanceWindowOpen
+              ? 'Clicca sulle tue caselle delle sessioni programmate per confermare presenza o assenza'
+              : 'Visualizzazione presenze rosa'}
         </p>
       </div>
 
@@ -458,14 +548,16 @@ export const AttendanceMatrixView: React.FC = () => {
                         ? record.status 
                         : (player.status === 'injured' ? 'injured_diff' : 'present');
 
+                      const selfDeclareEligible = canSelfDeclare(player, session);
+
                       return (
-                        <td 
-                          key={session.id} 
+                        <td
+                          key={session.id}
                           onClick={() => handleCellClick(record, player, session)}
                           className={`py-2 px-2 border-r border-[#2A2A2E]/60 text-center transition-all ${
-                            isStaff ? 'cursor-pointer hover:bg-[#D4AF37]/10' : ''
-                          }`}
-                          title={record?.staffNotes ? `Note staff: ${record.staffNotes}` : undefined}
+                            isStaff || selfDeclareEligible ? 'cursor-pointer hover:bg-[#D4AF37]/10' : ''
+                          } ${selfDeclareEligible ? 'ring-1 ring-inset ring-[#D4AF37]/30' : ''}`}
+                          title={record?.staffNotes ? `Note staff: ${record.staffNotes}` : selfDeclareEligible ? 'Clicca per confermare presenza o assenza' : undefined}
                         >
                           <div className="flex items-center justify-center relative group">
                             {renderStatusBadge(status)}
@@ -592,6 +684,92 @@ export const AttendanceMatrixView: React.FC = () => {
               >
                 <Check className="w-4 h-4" />
                 Salva Modifica
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* Athlete Self-Declaration Modal */}
+      {selfDeclareCell && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-[#121214] border border-[#2A2A2E] rounded-xl w-full max-w-md p-6 shadow-2xl space-y-4">
+
+            <div className="flex items-start justify-between border-b border-[#2A2A2E] pb-3">
+              <div>
+                <h3 className="text-[#E0E0E1] font-bold text-base flex items-center gap-2">
+                  <CalendarClock className="w-4 h-4 text-[#D4AF37]" />
+                  Conferma Presenza
+                </h3>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  <span className="font-semibold text-[#E0E0E1]">{selfDeclareCell.sessionTitle}</span> — {selfDeclareCell.sessionDate}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelfDeclareCell(null)}
+                className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-[#1D1D21]"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-300 mb-2 uppercase tracking-wider">
+                Ci sarai?
+              </label>
+              <div className="grid grid-cols-1 gap-2">
+                {[
+                  { id: 'present', label: 'Presente' },
+                  { id: 'absent_justified', label: 'Assente Giustificata' },
+                  { id: 'absent_unjustified', label: 'Assente Non Giustificata' }
+                ].map(item => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setSelfDeclareCell({ ...selfDeclareCell, currentStatus: item.id as AttendanceStatus })}
+                    className={`py-2.5 px-3 rounded-lg text-xs font-bold border transition-all text-left ${
+                      selfDeclareCell.currentStatus === item.id
+                        ? 'bg-[#D4AF37] text-black border-[#D4AF37] shadow-md'
+                        : 'bg-[#1D1D21] text-gray-300 border-[#2A2A2E] hover:bg-[#26262B]'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {selfDeclareCell.currentStatus === 'absent_justified' && (
+              <div>
+                <label className="block text-xs font-semibold text-gray-300 mb-1">
+                  Motivo dell'assenza (facoltativo):
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="es. Università, lavoro, motivi personali..."
+                  value={selfDeclareCell.note}
+                  onChange={(e) => setSelfDeclareCell({ ...selfDeclareCell, note: e.target.value })}
+                  className="w-full px-3 py-2 bg-[#1D1D21] border border-[#2A2A2E] rounded-lg text-xs text-white focus:outline-none focus:border-[#D4AF37]"
+                />
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#2A2A2E]">
+              <button
+                type="button"
+                onClick={() => setSelfDeclareCell(null)}
+                className="px-4 py-2 bg-[#1D1D21] hover:bg-[#26262B] text-gray-300 text-xs font-semibold rounded-lg border border-[#2A2A2E]"
+              >
+                Annulla
+              </button>
+              <button
+                type="button"
+                onClick={saveSelfDeclare}
+                className="px-4 py-2 bg-[#D4AF37] hover:bg-[#C09F30] text-black text-xs font-bold rounded-lg shadow-md transition-all active:scale-95 flex items-center gap-1.5"
+              >
+                <Check className="w-4 h-4" />
+                Conferma
               </button>
             </div>
 
