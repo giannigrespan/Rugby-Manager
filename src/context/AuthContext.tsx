@@ -585,22 +585,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) throw error;
       if (!data.user) throw new Error('Registrazione non riuscita.');
 
-      const isRootAdmin = email.toLowerCase() === 'gianni.grespan@gmail.com';
-      const newProf: UserProfile = {
-        id: data.user.id,
-        email,
-        name,
-        role: isRootAdmin ? 'head_coach' : role,
-        isAdmin: isRootAdmin,
-        position: role === 'player' ? 'Ala Destra (14)' : 'Staff Tecnico',
-        department: role === 'player' ? 'trequarti' : 'staff',
-        status: 'fit',
-        createdAt: new Date().toISOString()
-      };
+      const userEmail = email.toLowerCase();
+      const isRootAdmin = userEmail === 'gianni.grespan@gmail.com';
+
+      // Se questa email corrisponde già a un membro dello staff o della rosa
+      // (es. importato dal foglio Google), riusa quel profilo invece di
+      // crearne uno generico: così chi non ha una mail Google può comunque
+      // registrarsi con email e password e vedere il proprio ruolo reale,
+      // esattamente come chi accede con Google.
+      const foundStaff = !isRootAdmin ? staffUsers.find(u => u.email.toLowerCase() === userEmail) : undefined;
+      let foundPlayer: UserProfile | undefined;
+      if (!isRootAdmin && !foundStaff) {
+        const { data: playerRows } = await supabase.from('players').select('*').eq('email', userEmail).limit(1);
+        foundPlayer = playerRows?.[0] as UserProfile | undefined;
+      }
+
+      const newProf: UserProfile = isRootAdmin
+        ? {
+            id: data.user.id,
+            email,
+            name: name || 'Gianni Grespan (Admin & Head Coach)',
+            role: 'head_coach',
+            isAdmin: true,
+            position: 'Staff Tecnico',
+            department: 'staff',
+            status: 'fit',
+            createdAt: new Date().toISOString(),
+            notes: 'Responsabile e Amministratore Rugby Villorba'
+          }
+        : foundStaff || foundPlayer || {
+            id: data.user.id,
+            email,
+            name,
+            role,
+            isAdmin: false,
+            position: role === 'player' ? 'Ala Destra (14)' : 'Staff Tecnico',
+            department: role === 'player' ? 'trequarti' : 'staff',
+            status: 'fit',
+            createdAt: new Date().toISOString()
+          };
+
       setCurrentUser(newProf);
       localStorage.setItem('rugby_current_user', JSON.stringify(newProf));
-      await supabase.from('user_accounts').upsert(newProf);
-      if (role !== 'player' || isRootAdmin) {
+      await supabase.from('user_accounts').upsert({ ...newProf, id: data.user.id });
+      if (isRootAdmin) {
+        await supabase.from('staff_users').upsert({ ...newProf, id: 'staff-gianni-grespan' });
+      } else if (!foundStaff && !foundPlayer && role !== 'player') {
         await supabase.from('staff_users').upsert(newProf);
       }
     } catch (err: any) {
