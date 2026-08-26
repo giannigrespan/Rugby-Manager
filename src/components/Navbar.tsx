@@ -130,7 +130,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       <p className="font-bold text-[#E0E0E1] truncate">{currentUser.name}</p>
                       <p className="text-[11px] text-gray-500 truncate">{currentUser.email}</p>
                       <span className="inline-block mt-1 text-[10px] font-bold uppercase tracking-wider bg-[#D4AF37]/15 text-[#D4AF37] border border-[#D4AF37]/30 px-2 py-0.5 rounded">
-                        {currentUser.isAdmin ? 'Amministratore' : currentUser.role.replace('_', ' ')}
+                        {currentUser.role.replace('_', ' ')}
                       </span>
                     </div>
 

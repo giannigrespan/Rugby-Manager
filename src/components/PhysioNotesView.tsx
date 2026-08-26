@@ -19,7 +19,7 @@ import {
 export const PhysioNotesView: React.FC = () => {
   const { players, physioNotes, addPhysioNote, deletePhysioNote, isSyncing } = useData();
   const { currentUser } = useAuth();
-  const isPhysioOrStaff = currentUser?.role === 'physiotherapist' || currentUser?.role === 'head_coach' || currentUser?.role === 'admin';
+  const isPhysioOrStaff = currentUser?.role === 'physiotherapist' || currentUser?.role === 'head_coach' || currentUser?.role === 'direttore_tecnico';
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedPlayerId, setSelectedPlayerId] = useState(players[0]?.id || '');

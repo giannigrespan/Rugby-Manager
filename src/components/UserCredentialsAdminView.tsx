@@ -130,9 +130,9 @@ interface RoleConfigItem {
 
 const ALL_ROLES_CONFIG: RoleConfigItem[] = [
   {
-    role: 'admin',
-    label: 'Amministratore (Admin)',
-    shortLabel: 'Admin',
+    role: 'direttore_tecnico',
+    label: 'Direttore Tecnico / Dirigente',
+    shortLabel: 'Direttore Tecnico',
     subtitle: 'Accesso totale garantito a tutte le sezioni & credenziali',
     badgeColor: 'bg-[#D4AF37] text-black border-[#D4AF37]',
     isAdminAlways: true
@@ -207,7 +207,7 @@ export const UserCredentialsAdminView: React.FC = () => {
     ...players
   ];
 
-  const adminCount = staffUsers.filter(s => s.isAdmin || s.role === 'admin').length;
+  const adminCount = staffUsers.filter(s => s.isAdmin || s.role === 'direttore_tecnico').length;
 
   const filteredUsers = allUsers.filter(u => {
     const matchesSearch = 
@@ -218,7 +218,7 @@ export const UserCredentialsAdminView: React.FC = () => {
     if (!matchesSearch) return false;
 
     if (filterType === 'staff') return u.role !== 'player';
-    if (filterType === 'admins') return u.isAdmin || u.role === 'admin';
+    if (filterType === 'admins') return u.isAdmin || u.role === 'direttore_tecnico';
     if (filterType === 'players') return u.role === 'player';
     return true;
   });
@@ -239,7 +239,7 @@ export const UserCredentialsAdminView: React.FC = () => {
   };
 
   const handleToggleAdmin = async (user: UserProfile) => {
-    const nextState = !(user.isAdmin || user.role === 'admin');
+    const nextState = !(user.isAdmin || user.role === 'direttore_tecnico');
     await toggleStaffAdmin(user.id, nextState);
     setFeedbackMessage(
       nextState 
@@ -256,7 +256,7 @@ export const UserCredentialsAdminView: React.FC = () => {
   };
 
   const handleTogglePermission = async (role: UserRole, section: ConfigurableSection) => {
-    if (role === 'admin') return; // Admin is permanently unlocked
+    if (role === 'direttore_tecnico') return; // Direttore Tecnico is permanently unlocked
     const currentVal = rolePermissions[role]?.[section] ?? DEFAULT_ROLE_PERMISSIONS[role]?.[section] ?? true;
     const nextVal = !currentVal;
     await updateRolePermission(role, section, nextVal);
@@ -271,7 +271,7 @@ export const UserCredentialsAdminView: React.FC = () => {
   };
 
   const handleEnableAllForRole = async (role: UserRole) => {
-    if (role === 'admin') return;
+    if (role === 'direttore_tecnico') return;
     for (const section of CONFIGURABLE_SECTIONS_LIST) {
       await updateRolePermission(role, section.id, true);
     }
@@ -643,7 +643,7 @@ export const UserCredentialsAdminView: React.FC = () => {
               {/* Quick Staff Admin Badges */}
               <div className="flex flex-wrap items-center gap-2">
                 {staffUsers.map(staff => {
-                  const isUserAdmin = staff.isAdmin || staff.role === 'admin';
+                  const isUserAdmin = staff.isAdmin || staff.role === 'direttore_tecnico';
                   return (
                     <div 
                       key={staff.id}
@@ -756,7 +756,7 @@ export const UserCredentialsAdminView: React.FC = () => {
                   ) : (
                     filteredUsers.map((user) => {
                       const isStaff = user.role !== 'player';
-                      const isUserAdmin = user.isAdmin || user.role === 'admin';
+                      const isUserAdmin = user.isAdmin || user.role === 'direttore_tecnico';
                       const pwd = user.tempPassword || generateDefaultPassword(user.name);
                       const isPasswordVisible = showPasswordMap[user.id] || false;
 
@@ -801,7 +801,7 @@ export const UserCredentialsAdminView: React.FC = () => {
                                     <option value="assistant_coach">Assistant Coach</option>
                                     <option value="athletic_trainer">Preparatore Atletico</option>
                                     <option value="physiotherapist">Fisioterapista</option>
-                                    <option value="admin">Direttore Tecnico / Admin</option>
+                                    <option value="direttore_tecnico">Direttore Tecnico / Dirigente</option>
                                   </select>
                                 ) : (
                                   <span className="inline-block text-[10px] text-gray-400 mt-0.5">
