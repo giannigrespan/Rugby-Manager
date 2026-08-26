@@ -27,8 +27,10 @@ interface DataContextType {
   notifications: PushNotification[];
   isSyncing: boolean;
   cloudSyncStatus: 'synced' | 'local_fallback' | 'connecting';
+  attendanceWindowOpen: boolean;
 
   // Actions
+  setAttendanceWindowOpen: (isOpen: boolean, updatedBy?: string) => Promise<void>;
   updateAttendance: (recordId: string, status: AttendanceRecord['status'], notes?: string, lateMin?: number) => Promise<void>;
   bulkMarkSessionAttendance: (sessionId: string, status: AttendanceRecord['status'], department?: string) => Promise<void>;
   addOrUpdateSession: (session: TrainingSession) => Promise<void>;
@@ -106,6 +108,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [isSyncing, setIsSyncing] = useState(false);
   const [cloudSyncStatus, setCloudSyncStatus] = useState<'synced' | 'local_fallback' | 'connecting'>('connecting');
+  const [attendanceWindowOpen, setAttendanceWindowOpenState] = useState<boolean>(true);
 
   // Persist locally whenever state updates
   useEffect(() => {
@@ -201,6 +204,42 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
+  // Supabase sync for the global attendance self-declaration switch
+  useEffect(() => {
+    const loadAttendanceWindow = async () => {
+      const { data, error } = await supabase
+        .from('attendance_window')
+        .select('*')
+        .eq('id', 'default')
+        .maybeSingle();
+      if (error) {
+        console.warn('Attendance window Supabase read warning:', error);
+        return;
+      }
+      if (data) {
+        setAttendanceWindowOpenState(Boolean(data.isOpen));
+      } else {
+        await supabase
+          .from('attendance_window')
+          .upsert({ id: 'default', isOpen: true, updatedAt: new Date().toISOString() })
+          .then(({ error: upsertError }) => {
+            if (upsertError) console.warn('Attendance window bootstrap warning:', upsertError);
+          });
+      }
+    };
+
+    loadAttendanceWindow();
+
+    const channel = supabase
+      .channel('attendance_window-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance_window' }, () => loadAttendanceWindow())
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   // Request browser Notification Permission on load
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
@@ -209,6 +248,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   // Actions
+  const setAttendanceWindowOpen = async (isOpen: boolean, updatedBy?: string) => {
+    setAttendanceWindowOpenState(isOpen);
+    const { error } = await supabase
+      .from('attendance_window')
+      .upsert({ id: 'default', isOpen, updatedAt: new Date().toISOString(), updatedBy });
+    if (error) console.warn('Attendance window update error:', error);
+  };
+
   const updateAttendance = async (recordId: string, status: AttendanceRecord['status'], notes?: string, lateMin?: number) => {
     setIsSyncing(true);
     setAttendances(prev => prev.map(rec => {
@@ -820,6 +867,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       notifications,
       isSyncing,
       cloudSyncStatus,
+      attendanceWindowOpen,
+      setAttendanceWindowOpen,
       updateAttendance,
       bulkMarkSessionAttendance,
       addOrUpdateSession,
