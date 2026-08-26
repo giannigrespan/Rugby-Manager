@@ -264,8 +264,8 @@ export const UserCredentialsAdminView: React.FC = () => {
     const roleName = ALL_ROLES_CONFIG.find(r => r.role === role)?.shortLabel || role;
     setFeedbackMessage(
       nextVal 
-        ? `Sezione "${sectionName}" ABILITATA per il ruolo "${roleName}". Sincronizzato sul cloud Firestore.`
-        : `Sezione "${sectionName}" DISABILITATA per il ruolo "${roleName}". Sincronizzato sul cloud Firestore.`
+        ? `Sezione "${sectionName}" ABILITATA per il ruolo "${roleName}". Sincronizzato sul database Supabase.`
+        : `Sezione "${sectionName}" DISABILITATA per il ruolo "${roleName}". Sincronizzato sul database Supabase.`
     );
     setTimeout(() => setFeedbackMessage(null), 3500);
   };
@@ -372,7 +372,7 @@ export const UserCredentialsAdminView: React.FC = () => {
 
           <div className="flex items-center gap-2 bg-[#1D1D21] px-3 py-2 rounded-lg border border-[#2A2A2E] text-xs">
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            <span className="text-[#E0E0E1] font-medium hidden sm:inline">Firestore Sync Online</span>
+            <span className="text-[#E0E0E1] font-medium hidden sm:inline">Supabase Sync Online</span>
           </div>
         </div>
       </div>
@@ -463,7 +463,7 @@ export const UserCredentialsAdminView: React.FC = () => {
                   <li><strong className="text-[#D4AF37]">Admin:</strong> ha sempre accesso garantito al 100% delle sezioni e alla gestione credenziali.</li>
                   <li><strong className="text-cyan-400">Fisioterapia / Medico:</strong> solitamente ha visibilità riservata sulle cartelle cliniche e infortuni.</li>
                   <li><strong className="text-purple-400">Atlete:</strong> vedono solo le sezioni di loro pertinenza (es. RPE, infortuni, log allenamenti individuali, compiti).</li>
-                  <li>Le modifiche ai flag hanno <strong>effetto immediato</strong> su tutti i dispositivi sincronizzati tramite Firestore.</li>
+                  <li>Le modifiche ai flag hanno <strong>effetto immediato</strong> su tutti i dispositivi sincronizzati tramite Supabase.</li>
                 </ul>
               </div>
             </div>
@@ -607,7 +607,7 @@ export const UserCredentialsAdminView: React.FC = () => {
               </div>
 
               <div className="text-[11px] text-gray-500 font-mono">
-                Modifiche salvate in doc Firestore: <code>settings/role_permissions</code>
+                Modifiche salvate nella tabella Supabase: <code>role_permissions</code>
               </div>
             </div>
           </div>

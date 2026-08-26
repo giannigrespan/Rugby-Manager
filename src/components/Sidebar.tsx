@@ -253,7 +253,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="px-4 py-2 bg-[#0A0A0B]/60 border-b border-[#2A2A2E] flex items-center justify-between text-[11px]">
             <span className="text-gray-400 flex items-center gap-1.5">
               <span className={`w-2 h-2 rounded-full ${cloudSyncStatus === 'synced' ? 'bg-emerald-500 animate-pulse' : 'bg-[#D4AF37]'}`}></span>
-              <span className="truncate">{cloudSyncStatus === 'synced' ? 'Firestore Online' : 'Sincronizzazione'}</span>
+              <span className="truncate">{cloudSyncStatus === 'synced' ? 'Supabase DB Online' : 'Sincronizzazione'}</span>
             </span>
             <span className="text-[10px] text-gray-500 font-mono">
               {totalPlayersCount > 0 ? `${totalPlayersCount} atlete` : 'Rosa vuota'}

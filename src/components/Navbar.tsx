@@ -67,7 +67,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="inline-block w-1 h-1 rounded-full bg-gray-600"></span>
               <span className="flex items-center gap-1.5 text-[11px] text-emerald-400 font-medium">
                 <span className={`w-2 h-2 rounded-full ${cloudSyncStatus === 'synced' ? 'bg-emerald-500 animate-pulse' : 'bg-[#D4AF37]'}`}></span>
-                {cloudSyncStatus === 'synced' ? 'Cloud Firestore Connesso' : 'Sincronizzazione Locale'}
+                {cloudSyncStatus === 'synced' ? 'Supabase DB Connesso' : 'Sincronizzazione Locale'}
               </span>
             </p>
           </div>
