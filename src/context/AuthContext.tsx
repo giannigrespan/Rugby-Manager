@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import {
   UserProfile,
   UserRole,
@@ -253,6 +253,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('rugby_staff_users', JSON.stringify(staffUsers));
   }, [staffUsers]);
 
+  // Always-current ref so resolveProfile can read the latest staffUsers
+  // without the effect below needing to depend on (and re-run for) it.
+  const staffUsersRef = useRef(staffUsers);
+  useEffect(() => {
+    staffUsersRef.current = staffUsers;
+  }, [staffUsers]);
+
   useEffect(() => {
     const resolveProfile = async (user: SupabaseUser | null) => {
       if (!user || !user.email) {
@@ -291,7 +298,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       // 2. Check in staff_users list
-      const foundStaff = staffUsers.find(u => u.email.toLowerCase() === userEmail);
+      const foundStaff = staffUsersRef.current.find(u => u.email.toLowerCase() === userEmail);
       if (foundStaff) {
         setCurrentUser(foundStaff);
         localStorage.setItem('rugby_current_user', JSON.stringify(foundStaff));
@@ -388,7 +395,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     return () => subscription.unsubscribe();
-  }, [staffUsers]);
+    // Runs once: resolveProfile reads staffUsersRef.current for the latest
+    // value, so it doesn't need to re-subscribe every time staffUsers changes
+    // (that used to cause a feedback loop - see staff_users upsert below).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const setStaffList = (list: UserProfile[]) => {
     const cleaned = cleanLegacyStaff(list);
