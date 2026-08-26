@@ -1,37 +1,18 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { 
-  UserProfile, 
-  UserRole, 
-  ConfigurableSection, 
-  RolePermissionsMap, 
-  DEFAULT_ROLE_PERMISSIONS 
+import {
+  UserProfile,
+  UserRole,
+  ConfigurableSection,
+  RolePermissionsMap,
+  DEFAULT_ROLE_PERMISSIONS
 } from '../types';
 import { INITIAL_STAFF } from '../data/seedData';
-import { auth, googleProvider, db } from '../firebase/config';
-import { 
-  signInWithPopup, 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  signOut as fbSignOut, 
-  onAuthStateChanged, 
-  GoogleAuthProvider,
-  User as FirebaseUser
-} from 'firebase/auth';
-import { 
-  collection, 
-  doc, 
-  getDoc,
-  getDocs,
-  setDoc, 
-  deleteDoc, 
-  onSnapshot,
-  query,
-  where
-} from 'firebase/firestore';
+import { supabase } from '../supabase/config';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 interface AuthContextType {
   currentUser: UserProfile | null;
-  firebaseUser: FirebaseUser | null;
+  supabaseUser: SupabaseUser | null;
   staffUsers: UserProfile[];
   googleAccessToken: string | null;
   isLoading: boolean;
@@ -55,8 +36,11 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// In-memory token cache as required by OAuth workspace guidelines
+// In-memory token cache: Supabase only hands back the Google provider token
+// once, right after the OAuth redirect completes.
 let inMemoryGoogleToken: string | null = null;
+
+const ROLE_PERMISSIONS_ROW_ID = 'default';
 
 // Filter out old legacy dummy staff IDs
 const cleanLegacyStaff = (list: UserProfile[]): UserProfile[] => {
@@ -102,7 +86,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return INITIAL_STAFF[0] || null;
   });
 
-  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
+  const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null);
   const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -125,32 +109,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return DEFAULT_ROLE_PERMISSIONS;
   });
 
-  // Firestore real-time sync for role permissions
+  // Supabase real-time sync for role permissions
   useEffect(() => {
-    const unsubscribePermissions = onSnapshot(doc(db, 'settings', 'role_permissions'), (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data() as RolePermissionsMap;
-        if (data && typeof data === 'object') {
-          const merged: RolePermissionsMap = {
-            ...DEFAULT_ROLE_PERMISSIONS,
-            ...data
-          };
-          setRolePermissions(merged);
-          localStorage.setItem('rugby_role_permissions', JSON.stringify(merged));
-        }
-      } else {
-        // Bootstrap initial role permissions in Firestore
-        setDoc(doc(db, 'settings', 'role_permissions'), DEFAULT_ROLE_PERMISSIONS).catch(() => {});
-      }
-    }, (error) => {
-      console.warn('Role permissions Firestore listener warning:', error);
-    });
+    const loadRolePermissions = async () => {
+      const { data, error } = await supabase
+        .from('role_permissions')
+        .select('*')
+        .eq('id', ROLE_PERMISSIONS_ROW_ID)
+        .maybeSingle();
 
-    return () => unsubscribePermissions();
+      if (error) {
+        console.warn('Role permissions Supabase read warning:', error);
+        return;
+      }
+
+      if (data) {
+        const merged: RolePermissionsMap = {
+          ...DEFAULT_ROLE_PERMISSIONS,
+          ...(data.permissions as RolePermissionsMap)
+        };
+        setRolePermissions(merged);
+        localStorage.setItem('rugby_role_permissions', JSON.stringify(merged));
+      } else {
+        // Bootstrap initial role permissions in Supabase
+        await supabase
+          .from('role_permissions')
+          .upsert({ id: ROLE_PERMISSIONS_ROW_ID, permissions: DEFAULT_ROLE_PERMISSIONS })
+          .then(({ error: upsertError }) => {
+            if (upsertError) console.warn('Role permissions bootstrap warning:', upsertError);
+          });
+      }
+    };
+
+    loadRolePermissions();
+
+    const channel = supabase
+      .channel('role_permissions-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'role_permissions' },
+        () => loadRolePermissions()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   // Update a specific section flag for a role
   const updateRolePermission = async (role: UserRole, section: ConfigurableSection, enabled: boolean) => {
+    let updatedMap: RolePermissionsMap | null = null;
     setRolePermissions(prev => {
       const updated: RolePermissionsMap = {
         ...prev,
@@ -160,11 +169,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       };
       localStorage.setItem('rugby_role_permissions', JSON.stringify(updated));
-      setDoc(doc(db, 'settings', 'role_permissions'), updated, { merge: true }).catch(err => {
-        console.warn('Failed to update role permissions in Firestore:', err);
-      });
+      updatedMap = updated;
       return updated;
     });
+
+    if (updatedMap) {
+      const { error } = await supabase
+        .from('role_permissions')
+        .upsert({ id: ROLE_PERMISSIONS_ROW_ID, permissions: updatedMap });
+      if (error) console.warn('Failed to update role permissions in Supabase:', error);
+    }
   };
 
   // Reset all permissions to club defaults
@@ -172,9 +186,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setRolePermissions(DEFAULT_ROLE_PERMISSIONS);
     localStorage.setItem('rugby_role_permissions', JSON.stringify(DEFAULT_ROLE_PERMISSIONS));
     try {
-      await setDoc(doc(db, 'settings', 'role_permissions'), DEFAULT_ROLE_PERMISSIONS);
+      const { error } = await supabase
+        .from('role_permissions')
+        .upsert({ id: ROLE_PERMISSIONS_ROW_ID, permissions: DEFAULT_ROLE_PERMISSIONS });
+      if (error) throw error;
     } catch (err) {
-      console.warn('Failed to reset role permissions in Firestore:', err);
+      console.warn('Failed to reset role permissions in Supabase:', err);
     }
   };
 
@@ -192,25 +209,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return rolePermissions[role]?.[section] ?? DEFAULT_ROLE_PERMISSIONS[role]?.[section] ?? true;
   };
 
-  // Firestore real-time sync for staff users
+  // Supabase real-time sync for staff users
   useEffect(() => {
-    const unsubscribeStaff = onSnapshot(collection(db, 'staff_users'), (snapshot) => {
-      if (!snapshot.empty) {
-        const fetched = snapshot.docs.map(doc => doc.data() as UserProfile);
-        const cleaned = cleanLegacyStaff(fetched);
+    const loadStaffUsers = async () => {
+      const { data, error } = await supabase.from('staff_users').select('*');
+      if (error) {
+        console.warn('Staff users Supabase read warning:', error);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        const cleaned = cleanLegacyStaff(data as UserProfile[]);
         setStaffUsersState(cleaned);
         localStorage.setItem('rugby_staff_users', JSON.stringify(cleaned));
       } else {
-        // Initialize INITIAL_STAFF to Firestore
-        INITIAL_STAFF.forEach(staff => {
-          setDoc(doc(db, 'staff_users', staff.id), staff, { merge: true }).catch(() => {});
-        });
+        // Initialize INITIAL_STAFF in Supabase
+        const { error: seedError } = await supabase.from('staff_users').upsert(INITIAL_STAFF);
+        if (seedError) console.warn('Staff users seed warning:', seedError);
       }
-    }, (error) => {
-      console.warn('Staff users subscription fallback:', error);
-    });
+    };
 
-    return () => unsubscribeStaff();
+    loadStaffUsers();
+
+    const channel = supabase
+      .channel('staff_users-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'staff_users' },
+        () => loadStaffUsers()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   // Sync staff to local storage whenever it changes
@@ -219,94 +251,140 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [staffUsers]);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setFirebaseUser(user);
-      if (user && user.email) {
-        const userEmail = user.email.toLowerCase();
-        
-        // 1. Check if it's Gianni Grespan (Root Admin & Head Coach)
-        if (userEmail === 'gianni.grespan@gmail.com') {
-          const adminProf: UserProfile = {
-            id: user.uid,
-            email: user.email,
-            name: user.displayName || 'Gianni Grespan (Admin & Head Coach)',
-            role: 'head_coach',
-            isAdmin: true,
-            position: 'Staff Tecnico',
-            department: 'staff',
-            status: 'fit',
-            createdAt: new Date().toISOString(),
-            notes: 'Responsabile e Amministratore Rugby Villorba'
-          };
-          setCurrentUser(adminProf);
-          localStorage.setItem('rugby_current_user', JSON.stringify(adminProf));
-          setDoc(doc(db, 'staff_users', 'staff-gianni-grespan'), adminProf, { merge: true }).catch(() => {});
-          setDoc(doc(db, 'users', user.uid), adminProf, { merge: true }).catch(() => {});
-          setIsLoading(false);
-          return;
-        }
+    const resolveProfile = async (user: SupabaseUser | null) => {
+      if (!user || !user.email) {
+        inMemoryGoogleToken = null;
+        setGoogleAccessToken(null);
+        setIsLoading(false);
+        return;
+      }
 
-        // 2. Check in staff_users list
-        const foundStaff = staffUsers.find(u => u.email.toLowerCase() === userEmail);
-        if (foundStaff) {
-          setCurrentUser(foundStaff);
-          localStorage.setItem('rugby_current_user', JSON.stringify(foundStaff));
-          setDoc(doc(db, 'users', user.uid), foundStaff, { merge: true }).catch(() => {});
-          setIsLoading(false);
-          return;
-        }
+      const userEmail = user.email.toLowerCase();
 
-        // 3. Query Firestore 'players' collection (Roster)
-        try {
-          const playerSnap = await getDocs(query(collection(db, 'players'), where('email', '==', userEmail)));
-          if (!playerSnap.empty) {
-            const playerProfile = playerSnap.docs[0].data() as UserProfile;
-            setCurrentUser(playerProfile);
-            localStorage.setItem('rugby_current_user', JSON.stringify(playerProfile));
-            setDoc(doc(db, 'users', user.uid), playerProfile, { merge: true }).catch(() => {});
-            setIsLoading(false);
-            return;
-          }
-        } catch (err) {
-          console.warn('Firestore player search warning:', err);
-        }
-
-        // 4. Query Firestore 'users' collection
-        try {
-          const userDocSnap = await getDoc(doc(db, 'users', user.uid));
-          if (userDocSnap.exists()) {
-            const existingUser = userDocSnap.data() as UserProfile;
-            setCurrentUser(existingUser);
-            localStorage.setItem('rugby_current_user', JSON.stringify(existingUser));
-            setIsLoading(false);
-            return;
-          }
-        } catch (err) {
-          console.warn('Firestore user profile query warning:', err);
-        }
-
-        // 5. Default new user profile
-        const newProfile: UserProfile = {
-          id: user.uid,
+      // 1. Check if it's Gianni Grespan (Root Admin & Head Coach)
+      if (userEmail === 'gianni.grespan@gmail.com') {
+        const adminProf: UserProfile = {
+          id: user.id,
           email: user.email,
-          name: user.displayName || user.email.split('@')[0],
-          role: 'player',
-          position: 'Primo Centro (12)',
-          department: 'trequarti',
+          name: (user.user_metadata?.full_name as string) || 'Gianni Grespan (Admin & Head Coach)',
+          role: 'head_coach',
+          isAdmin: true,
+          position: 'Staff Tecnico',
+          department: 'staff',
           status: 'fit',
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          notes: 'Responsabile e Amministratore Rugby Villorba'
         };
-        setCurrentUser(newProfile);
-        localStorage.setItem('rugby_current_user', JSON.stringify(newProfile));
-        setDoc(doc(db, 'users', user.uid), newProfile, { merge: true }).catch(() => {});
-      } else {
+        setCurrentUser(adminProf);
+        localStorage.setItem('rugby_current_user', JSON.stringify(adminProf));
+        supabase.from('staff_users').upsert({ ...adminProf, id: 'staff-gianni-grespan' }).then(({ error }) => {
+          if (error) console.warn('Admin staff upsert warning:', error);
+        });
+        supabase.from('user_accounts').upsert(adminProf).then(({ error }) => {
+          if (error) console.warn('Admin user_accounts upsert warning:', error);
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // 2. Check in staff_users list
+      const foundStaff = staffUsers.find(u => u.email.toLowerCase() === userEmail);
+      if (foundStaff) {
+        setCurrentUser(foundStaff);
+        localStorage.setItem('rugby_current_user', JSON.stringify(foundStaff));
+        supabase.from('user_accounts').upsert({ ...foundStaff, id: user.id }).then(({ error }) => {
+          if (error) console.warn('Staff user_accounts upsert warning:', error);
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // 3. Query Supabase 'players' table (Roster)
+      try {
+        const { data: playerRows, error } = await supabase
+          .from('players')
+          .select('*')
+          .eq('email', userEmail)
+          .limit(1);
+        if (error) throw error;
+        if (playerRows && playerRows.length > 0) {
+          const playerProfile = playerRows[0] as UserProfile;
+          setCurrentUser(playerProfile);
+          localStorage.setItem('rugby_current_user', JSON.stringify(playerProfile));
+          supabase.from('user_accounts').upsert({ ...playerProfile, id: user.id }).then(({ error: upsertError }) => {
+            if (upsertError) console.warn('Player user_accounts upsert warning:', upsertError);
+          });
+          setIsLoading(false);
+          return;
+        }
+      } catch (err) {
+        console.warn('Supabase player search warning:', err);
+      }
+
+      // 4. Query Supabase 'user_accounts' table
+      try {
+        const { data: existingUser, error } = await supabase
+          .from('user_accounts')
+          .select('*')
+          .eq('id', user.id)
+          .maybeSingle();
+        if (error) throw error;
+        if (existingUser) {
+          setCurrentUser(existingUser as UserProfile);
+          localStorage.setItem('rugby_current_user', JSON.stringify(existingUser));
+          setIsLoading(false);
+          return;
+        }
+      } catch (err) {
+        console.warn('Supabase user profile query warning:', err);
+      }
+
+      // 5. Default new user profile
+      const newProfile: UserProfile = {
+        id: user.id,
+        email: user.email,
+        name: (user.user_metadata?.full_name as string) || user.email.split('@')[0],
+        role: 'player',
+        position: 'Primo Centro (12)',
+        department: 'trequarti',
+        status: 'fit',
+        createdAt: new Date().toISOString()
+      };
+      setCurrentUser(newProfile);
+      localStorage.setItem('rugby_current_user', JSON.stringify(newProfile));
+      supabase.from('user_accounts').upsert(newProfile).then(({ error }) => {
+        if (error) console.warn('New profile user_accounts upsert warning:', error);
+      });
+      setIsLoading(false);
+    };
+
+    // Resolve whatever session is already active on load
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSupabaseUser(session?.user ?? null);
+      if (session?.provider_token) {
+        inMemoryGoogleToken = session.provider_token;
+        setGoogleAccessToken(session.provider_token);
+      }
+      resolveProfile(session?.user ?? null);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setSupabaseUser(session?.user ?? null);
+
+      if (session?.provider_token) {
+        inMemoryGoogleToken = session.provider_token;
+        setGoogleAccessToken(session.provider_token);
+      }
+
+      if (event === 'SIGNED_OUT') {
         inMemoryGoogleToken = null;
         setGoogleAccessToken(null);
       }
-      setIsLoading(false);
+
+      resolveProfile(session?.user ?? null);
     });
 
-    return () => unsubscribe();
+    return () => subscription.unsubscribe();
   }, [staffUsers]);
 
   const setStaffList = (list: UserProfile[]) => {
@@ -327,7 +405,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     setStaffUsersState(prev => [newMember, ...prev]);
     try {
-      await setDoc(doc(db, 'staff_users', newId), newMember);
+      const { error } = await supabase.from('staff_users').upsert(newMember);
+      if (error) throw error;
     } catch (e) {
       console.warn('Staff member cloud write error:', e);
     }
@@ -340,7 +419,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('rugby_current_user', JSON.stringify(member));
     }
     try {
-      await setDoc(doc(db, 'staff_users', member.id), member, { merge: true });
+      const { error } = await supabase.from('staff_users').upsert(member);
+      if (error) throw error;
     } catch (e) {
       console.warn('Staff member update cloud error:', e);
     }
@@ -353,7 +433,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const updated = {
           ...s,
           isAdmin,
-          role: isAdmin && s.role === 'player' ? 'admin' : s.role
+          role: isAdmin && s.role === 'player' ? 'admin' as UserRole : s.role
         };
         targetMember = updated;
         return updated;
@@ -365,7 +445,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const updatedUser = {
         ...currentUser,
         isAdmin,
-        role: isAdmin && currentUser.role === 'player' ? 'admin' : currentUser.role
+        role: isAdmin && currentUser.role === 'player' ? 'admin' as UserRole : currentUser.role
       };
       setCurrentUser(updatedUser);
       localStorage.setItem('rugby_current_user', JSON.stringify(updatedUser));
@@ -373,7 +453,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (targetMember) {
       try {
-        await setDoc(doc(db, 'staff_users', staffId), targetMember, { merge: true });
+        const { error } = await supabase.from('staff_users').upsert(targetMember);
+        if (error) throw error;
       } catch (e) {
         console.warn('Staff admin toggle cloud error:', e);
       }
@@ -407,7 +488,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (targetMember) {
       try {
-        await setDoc(doc(db, 'staff_users', staffId), targetMember, { merge: true });
+        const { error } = await supabase.from('staff_users').upsert(targetMember);
+        if (error) throw error;
       } catch (e) {
         console.warn('Staff role update cloud error:', e);
       }
@@ -427,7 +509,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
     try {
-      await deleteDoc(doc(db, 'staff_users', staffId));
+      const { error } = await supabase.from('staff_users').delete().eq('id', staffId);
+      if (error) throw error;
     } catch (e) {
       console.warn('Staff delete cloud error:', e);
     }
@@ -439,34 +522,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const loginWithGoogle = async (): Promise<string | null> => {
+    // If we already picked up a provider token from a previous OAuth
+    // round-trip in this session, reuse it instead of redirecting again.
+    if (inMemoryGoogleToken) {
+      return inMemoryGoogleToken;
+    }
+
     try {
       setIsLoading(true);
-      const res = await signInWithPopup(auth, googleProvider);
-      let token: string | null = null;
-      const credential = GoogleAuthProvider.credentialFromResult(res);
-      if (credential?.accessToken) {
-        token = credential.accessToken;
-        inMemoryGoogleToken = token;
-        setGoogleAccessToken(token);
-      }
-
-      if (res.user && res.user.email) {
-        const found = staffUsers.find(u => u.email.toLowerCase() === res.user.email?.toLowerCase());
-        const userProf = found || {
-          id: res.user.uid,
-          email: res.user.email,
-          name: res.user.displayName || 'Membro Staff',
-          role: 'head_coach' as UserRole,
-          isAdmin: res.user.email.toLowerCase() === 'gianni.grespan@gmail.com',
-          position: 'Staff Tecnico' as const,
-          department: 'staff' as const,
-          status: 'fit' as const,
-          createdAt: new Date().toISOString()
-        };
-        setCurrentUser(userProf);
-        localStorage.setItem('rugby_current_user', JSON.stringify(userProf));
-      }
-      return token;
+      // Supabase Google sign-in redirects the whole page to Google and back
+      // (there is no popup-with-immediate-token flow like Firebase's).
+      // The provider token is picked up in the onAuthStateChange listener
+      // above once the user lands back on the app.
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          scopes: 'https://www.googleapis.com/auth/spreadsheets.readonly',
+          queryParams: { prompt: 'select_account' },
+          redirectTo: window.location.origin + window.location.pathname
+        }
+      });
+      if (error) throw error;
+      return null;
     } catch (err: any) {
       console.warn('Google sign-in error or cancelled:', err);
       return null;
@@ -478,7 +555,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loginWithEmail = async (email: string, pass: string) => {
     setIsLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, pass);
+      const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
+      if (error) throw error;
     } catch (err) {
       // Check in staff list
       const found = staffUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
@@ -496,10 +574,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const registerWithEmail = async (email: string, pass: string, name: string, role: UserRole) => {
     setIsLoading(true);
     try {
-      const res = await createUserWithEmailAndPassword(auth, email, pass);
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password: pass,
+        options: { data: { full_name: name } }
+      });
+      if (error) throw error;
+      if (!data.user) throw new Error('Registrazione non riuscita.');
+
       const isRootAdmin = email.toLowerCase() === 'gianni.grespan@gmail.com';
       const newProf: UserProfile = {
-        id: res.user.uid,
+        id: data.user.id,
         email,
         name,
         role: isRootAdmin ? 'head_coach' : role,
@@ -511,9 +596,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
       setCurrentUser(newProf);
       localStorage.setItem('rugby_current_user', JSON.stringify(newProf));
-      await setDoc(doc(db, 'users', res.user.uid), newProf, { merge: true });
+      await supabase.from('user_accounts').upsert(newProf);
       if (role !== 'player' || isRootAdmin) {
-        await setDoc(doc(db, 'staff_users', res.user.uid), newProf, { merge: true });
+        await supabase.from('staff_users').upsert(newProf);
       }
     } catch (err: any) {
       // Local fallback
@@ -538,10 +623,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     try {
-      await fbSignOut(auth);
+      await supabase.auth.signOut();
     } catch (e) {
       // ignore
     }
+    inMemoryGoogleToken = null;
+    setGoogleAccessToken(null);
     // Set to null or guest
     setCurrentUser(null);
     localStorage.removeItem('rugby_current_user');
@@ -557,7 +644,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return (
     <AuthContext.Provider value={{
       currentUser,
-      firebaseUser,
+      supabaseUser,
       staffUsers,
       googleAccessToken,
       isLoading,

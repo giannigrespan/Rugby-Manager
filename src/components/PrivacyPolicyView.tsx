@@ -85,7 +85,7 @@ export const PrivacyPolicyView: React.FC<PrivacyPolicyViewProps> = ({ onBack }) 
               <strong className="text-white">Dati Sanitari e Idoneità Sportiva (Art. 9 GDPR):</strong> Scadenza del certificato medico agonistico, note fisioterapiche riservate, segnalazioni infortuni/fastidi e protocolli sanitari World Rugby HIA (Head Injury Assessment). Tali dati sono accessibili esclusivamente allo staff medico autorizzato e al preparatore.
             </li>
             <li>
-              <strong className="text-white">Dati di Autenticazione:</strong> Identificativi account Google (OAuth 2.0) e token di sessione Firebase crittografati.
+              <strong className="text-white">Dati di Autenticazione:</strong> Identificativi account Google (OAuth 2.0) e token di sessione Supabase crittografati.
             </li>
           </ul>
         </section>

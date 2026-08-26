@@ -70,12 +70,14 @@ export const GoogleSheetsImportModal: React.FC<GoogleSheetsImportModalProps> = (
     try {
       let token = googleAccessToken;
       if (!token) {
-        // Trigger Google Sign-in to acquire the OAuth token
-        token = await loginWithGoogle();
-      }
-
-      if (!token) {
-        throw new Error('È necessario accedere con il proprio account Google autorizzato per leggere il foglio di calcolo.');
+        // Supabase's Google sign-in redirects the whole page to Google and
+        // back, so no token is available synchronously here. The redirect
+        // starts immediately; when the user lands back on this page after
+        // authorizing, the token will already be cached and this button can
+        // be clicked again to actually fetch the sheet.
+        await loginWithGoogle();
+        setErrorMessage('Verrai reindirizzato per accedere con Google. Al tuo ritorno, clicca di nuovo su "Carica da Google Sheets".');
+        return;
       }
 
       const parsed = await fetchGoogleSheetData(sheetUrl, token);

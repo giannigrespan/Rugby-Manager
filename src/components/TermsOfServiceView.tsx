@@ -96,7 +96,7 @@ export const TermsOfServiceView: React.FC<TermsOfServiceViewProps> = ({ onBack }
             L'applicazione offre la possibilità di collegare account Google (Google Sheets e Google Calendar) tramite autenticazione sicura OAuth 2.0. L'autorizzazione può essere revocata dall'utente in qualsiasi momento direttamente dalla pagina del proprio account Google.
           </p>
           <p>
-            L'elaborazione dei dati rispetta le relative norme di utilizzo stabilite da Google Inc. e le policy di sicurezza di Firebase Cloud.
+            L'elaborazione dei dati rispetta le relative norme di utilizzo stabilite da Google Inc. e le policy di sicurezza di Supabase Cloud.
           </p>
         </section>
 

@@ -138,7 +138,7 @@ const AppContent: React.FC = () => {
                 <span className="hidden sm:inline text-gray-600">•</span>
                 <span className="flex items-center gap-1.5 text-emerald-400">
                   <span className={`w-1.5 h-1.5 rounded-full ${cloudSyncStatus === 'synced' ? 'bg-emerald-500' : 'bg-[#D4AF37]'}`}></span>
-                  {cloudSyncStatus === 'synced' ? 'Firestore Sincronizzato' : 'Locale'}
+                  {cloudSyncStatus === 'synced' ? 'Supabase Sincronizzato' : 'Locale'}
                 </span>
                 <span className="text-gray-600">•</span>
                 <span className="text-gray-400">{players.length} Atlete</span>
