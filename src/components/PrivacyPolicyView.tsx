@@ -150,7 +150,7 @@ export const PrivacyPolicyView: React.FC<PrivacyPolicyViewProps> = ({ onBack }) 
             <span>5. Sicurezza e Conservazione dei Dati</span>
           </h2>
           <p>
-            I dati sono protetti tramite crittografia standard di settore TLS/HTTPS in transito e crittografia AES-256 a riposo sui server sicuri Google Cloud Firestore conformi alle normative europee GDPR.
+            I dati sono protetti tramite crittografia standard di settore TLS/HTTPS in transito e crittografia AES-256 a riposo sui server sicuri Supabase (PostgreSQL) conformi alle normative europee GDPR.
           </p>
           <p>
             I dati vengono conservati per la durata della stagione agonistica e dell'iscrizione al club sportivo, salvo richiesta di cancellazione anticipata.
