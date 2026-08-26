@@ -88,7 +88,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             <h3 className="text-[#E0E0E1] font-bold text-sm sm:text-base font-serif">
               {currentUser ? 'Gestione Account Utente' : (mode === 'login' ? 'Accesso Piattaforma Squadra' : 'Registrazione Nuova Atleta')}
             </h3>
-            <p className="text-[11px] text-gray-400">Autenticazione Cloud Firebase & Google</p>
+            <p className="text-[11px] text-gray-400">Autenticazione Cloud Supabase & Google</p>
           </div>
         </div>
 

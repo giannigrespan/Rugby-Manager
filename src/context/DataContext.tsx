@@ -1,26 +1,18 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { 
-  UserProfile, 
-  TrainingSession, 
-  AttendanceRecord, 
-  RpeFeedback, 
-  InjuryReport, 
-  PhysioNote, 
-  IndividualTask, 
-  KickingSession, 
+import {
+  UserProfile,
+  TrainingSession,
+  AttendanceRecord,
+  RpeFeedback,
+  InjuryReport,
+  PhysioNote,
+  IndividualTask,
+  KickingSession,
   IndividualTrainingLog,
   PushNotification,
   StaffAiReport
 } from '../types';
-import { db } from '../firebase/config';
-import { 
-  collection, 
-  doc, 
-  setDoc, 
-  getDocs, 
-  deleteDoc,
-  onSnapshot 
-} from 'firebase/firestore';
+import { supabase } from '../supabase/config';
 
 interface DataContextType {
   players: UserProfile[];
@@ -35,7 +27,7 @@ interface DataContextType {
   notifications: PushNotification[];
   isSyncing: boolean;
   cloudSyncStatus: 'synced' | 'local_fallback' | 'connecting';
-  
+
   // Actions
   updateAttendance: (recordId: string, status: AttendanceRecord['status'], notes?: string, lateMin?: number) => Promise<void>;
   bulkMarkSessionAttendance: (sessionId: string, status: AttendanceRecord['status'], department?: string) => Promise<void>;
@@ -67,301 +59,142 @@ interface DataContextType {
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
+// Maps each Supabase table to the localStorage key used for the offline cache
+const TABLE_STORAGE_KEYS: Record<string, string> = {
+  players: 'rugby_roster_players',
+  training_sessions: 'rugby_training_sessions',
+  attendances: 'rugby_attendances',
+  rpe_feedbacks: 'rugby_rpe_feedbacks',
+  injuries: 'rugby_injuries',
+  physio_notes: 'rugby_physio_notes',
+  tasks: 'rugby_tasks',
+  kicking_sessions: 'rugby_kicking_sessions',
+  individual_logs: 'rugby_individual_logs',
+  push_notifications: 'rugby_notifications'
+};
+
+const loadFromLocalStorage = <T,>(key: string): T[] => {
+  const saved = localStorage.getItem(key);
+  if (saved !== null) {
+    try {
+      return JSON.parse(saved);
+    } catch {
+      return [];
+    }
+  }
+  return [];
+};
+
+// Deletes every row of a table (used for "replace everything" style resets)
+const deleteAllRows = async (table: string) => {
+  const { error } = await supabase.from(table).delete().neq('id', '');
+  if (error) throw error;
+};
+
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Local state initialized to empty arrays by default (for clean initial publish) or loaded from localStorage if explicitly present
-  const [players, setPlayers] = useState<UserProfile[]>(() => {
-    const saved = localStorage.getItem('rugby_roster_players');
-    if (saved !== null) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return [];
-      }
-    }
-    return [];
-  });
-
-  const [sessions, setSessions] = useState<TrainingSession[]>(() => {
-    const saved = localStorage.getItem('rugby_training_sessions');
-    if (saved !== null) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return [];
-      }
-    }
-    return [];
-  });
-
-  const [attendances, setAttendances] = useState<AttendanceRecord[]>(() => {
-    const saved = localStorage.getItem('rugby_attendances');
-    if (saved !== null) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return [];
-      }
-    }
-    return [];
-  });
-
-  const [rpeFeedbacks, setRpeFeedbacks] = useState<RpeFeedback[]>(() => {
-    const saved = localStorage.getItem('rugby_rpe_feedbacks');
-    if (saved !== null) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return [];
-      }
-    }
-    return [];
-  });
-
-  const [injuries, setInjuries] = useState<InjuryReport[]>(() => {
-    const saved = localStorage.getItem('rugby_injuries');
-    if (saved !== null) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return [];
-      }
-    }
-    return [];
-  });
-
-  const [physioNotes, setPhysioNotes] = useState<PhysioNote[]>(() => {
-    const saved = localStorage.getItem('rugby_physio_notes');
-    if (saved !== null) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return [];
-      }
-    }
-    return [];
-  });
-
-  const [tasks, setTasks] = useState<IndividualTask[]>(() => {
-    const saved = localStorage.getItem('rugby_tasks');
-    if (saved !== null) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return [];
-      }
-    }
-    return [];
-  });
-
-  const [kickingSessions, setKickingSessions] = useState<KickingSession[]>(() => {
-    const saved = localStorage.getItem('rugby_kicking_sessions');
-    if (saved !== null) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return [];
-      }
-    }
-    return [];
-  });
-
-  const [individualLogs, setIndividualLogs] = useState<IndividualTrainingLog[]>(() => {
-    const saved = localStorage.getItem('rugby_individual_logs');
-    if (saved !== null) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return [];
-      }
-    }
-    return [];
-  });
-
-  const [notifications, setNotifications] = useState<PushNotification[]>(() => {
-    const saved = localStorage.getItem('rugby_notifications');
-    if (saved !== null) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return [];
-      }
-    }
-    return [];
-  });
+  const [players, setPlayers] = useState<UserProfile[]>(() => loadFromLocalStorage(TABLE_STORAGE_KEYS.players));
+  const [sessions, setSessions] = useState<TrainingSession[]>(() => loadFromLocalStorage(TABLE_STORAGE_KEYS.training_sessions));
+  const [attendances, setAttendances] = useState<AttendanceRecord[]>(() => loadFromLocalStorage(TABLE_STORAGE_KEYS.attendances));
+  const [rpeFeedbacks, setRpeFeedbacks] = useState<RpeFeedback[]>(() => loadFromLocalStorage(TABLE_STORAGE_KEYS.rpe_feedbacks));
+  const [injuries, setInjuries] = useState<InjuryReport[]>(() => loadFromLocalStorage(TABLE_STORAGE_KEYS.injuries));
+  const [physioNotes, setPhysioNotes] = useState<PhysioNote[]>(() => loadFromLocalStorage(TABLE_STORAGE_KEYS.physio_notes));
+  const [tasks, setTasks] = useState<IndividualTask[]>(() => loadFromLocalStorage(TABLE_STORAGE_KEYS.tasks));
+  const [kickingSessions, setKickingSessions] = useState<KickingSession[]>(() => loadFromLocalStorage(TABLE_STORAGE_KEYS.kicking_sessions));
+  const [individualLogs, setIndividualLogs] = useState<IndividualTrainingLog[]>(() => loadFromLocalStorage(TABLE_STORAGE_KEYS.individual_logs));
+  const [notifications, setNotifications] = useState<PushNotification[]>(() => loadFromLocalStorage(TABLE_STORAGE_KEYS.push_notifications));
 
   const [isSyncing, setIsSyncing] = useState(false);
   const [cloudSyncStatus, setCloudSyncStatus] = useState<'synced' | 'local_fallback' | 'connecting'>('connecting');
 
   // Persist locally whenever state updates
   useEffect(() => {
-    localStorage.setItem('rugby_roster_players', JSON.stringify(players));
+    localStorage.setItem(TABLE_STORAGE_KEYS.players, JSON.stringify(players));
   }, [players]);
 
   useEffect(() => {
-    localStorage.setItem('rugby_training_sessions', JSON.stringify(sessions));
+    localStorage.setItem(TABLE_STORAGE_KEYS.training_sessions, JSON.stringify(sessions));
   }, [sessions]);
 
   useEffect(() => {
-    localStorage.setItem('rugby_attendances', JSON.stringify(attendances));
+    localStorage.setItem(TABLE_STORAGE_KEYS.attendances, JSON.stringify(attendances));
   }, [attendances]);
 
   useEffect(() => {
-    localStorage.setItem('rugby_rpe_feedbacks', JSON.stringify(rpeFeedbacks));
+    localStorage.setItem(TABLE_STORAGE_KEYS.rpe_feedbacks, JSON.stringify(rpeFeedbacks));
   }, [rpeFeedbacks]);
 
   useEffect(() => {
-    localStorage.setItem('rugby_injuries', JSON.stringify(injuries));
+    localStorage.setItem(TABLE_STORAGE_KEYS.injuries, JSON.stringify(injuries));
   }, [injuries]);
 
   useEffect(() => {
-    localStorage.setItem('rugby_physio_notes', JSON.stringify(physioNotes));
+    localStorage.setItem(TABLE_STORAGE_KEYS.physio_notes, JSON.stringify(physioNotes));
   }, [physioNotes]);
 
   useEffect(() => {
-    localStorage.setItem('rugby_tasks', JSON.stringify(tasks));
+    localStorage.setItem(TABLE_STORAGE_KEYS.tasks, JSON.stringify(tasks));
   }, [tasks]);
 
   useEffect(() => {
-    localStorage.setItem('rugby_kicking_sessions', JSON.stringify(kickingSessions));
+    localStorage.setItem(TABLE_STORAGE_KEYS.kicking_sessions, JSON.stringify(kickingSessions));
   }, [kickingSessions]);
 
   useEffect(() => {
-    localStorage.setItem('rugby_individual_logs', JSON.stringify(individualLogs));
+    localStorage.setItem(TABLE_STORAGE_KEYS.individual_logs, JSON.stringify(individualLogs));
   }, [individualLogs]);
 
   useEffect(() => {
-    localStorage.setItem('rugby_notifications', JSON.stringify(notifications));
+    localStorage.setItem(TABLE_STORAGE_KEYS.push_notifications, JSON.stringify(notifications));
   }, [notifications]);
 
-  // Firestore background sync & real-time setup for ALL collections
+  // Supabase background sync & real-time setup for ALL tables
   useEffect(() => {
-    let unsubscribePlayers: (() => void) | undefined;
-    let unsubscribeSessions: (() => void) | undefined;
-    let unsubscribeAttendances: (() => void) | undefined;
-    let unsubscribeInjuries: (() => void) | undefined;
-    let unsubscribePhysio: (() => void) | undefined;
-    let unsubscribeTasks: (() => void) | undefined;
-    let unsubscribeRpe: (() => void) | undefined;
-    let unsubscribeKicking: (() => void) | undefined;
-    let unsubscribeIndividualLogs: (() => void) | undefined;
-    let unsubscribeNotifications: (() => void) | undefined;
+    setCloudSyncStatus('connecting');
 
-    const setupFirestore = async () => {
-      try {
-        setCloudSyncStatus('connecting');
+    // Generic helper: load a table's rows, keep local state + storage in sync,
+    // then subscribe to Postgres changes and reload on every change.
+    const watchTable = <T,>(table: string, setState: (rows: T[]) => void, markSyncedOnLoad = true) => {
+      const load = async () => {
+        const { data, error } = await supabase.from(table).select('*');
+        if (error) {
+          console.warn(`${table} Supabase subscription fallback:`, error);
+          setCloudSyncStatus(prev => (prev === 'synced' ? prev : 'local_fallback'));
+          return;
+        }
+        const rows = (data || []) as T[];
+        setState(rows);
+        localStorage.setItem(TABLE_STORAGE_KEYS[table], JSON.stringify(rows));
+        if (markSyncedOnLoad) setCloudSyncStatus('synced');
+      };
 
-        // 1. Players Collection
-        unsubscribePlayers = onSnapshot(collection(db, 'players'), (snapshot) => {
-          const fetched = snapshot.docs.map(doc => doc.data() as UserProfile);
-          setPlayers(fetched);
-          localStorage.setItem('rugby_roster_players', JSON.stringify(fetched));
-          setCloudSyncStatus('synced');
-        }, (error) => {
-          console.warn('Players firestore subscription fallback:', error);
-          setCloudSyncStatus('local_fallback');
-        });
+      load();
 
-        // 2. Training Sessions Collection
-        unsubscribeSessions = onSnapshot(collection(db, 'training_sessions'), (snapshot) => {
-          const fetched = snapshot.docs.map(doc => doc.data() as TrainingSession);
-          setSessions(fetched);
-          localStorage.setItem('rugby_training_sessions', JSON.stringify(fetched));
-          setCloudSyncStatus('synced');
-        }, (error) => {
-          console.warn('Sessions firestore subscription fallback:', error);
-        });
+      const channel = supabase
+        .channel(`${table}-changes`)
+        .on('postgres_changes', { event: '*', schema: 'public', table }, () => load())
+        .subscribe();
 
-        // 3. Attendances Collection
-        unsubscribeAttendances = onSnapshot(collection(db, 'attendances'), (snapshot) => {
-          const fetched = snapshot.docs.map(doc => doc.data() as AttendanceRecord);
-          setAttendances(fetched);
-          localStorage.setItem('rugby_attendances', JSON.stringify(fetched));
-        }, (error) => {
-          console.warn('Attendances firestore subscription fallback:', error);
-        });
-
-        // 4. Injuries Collection
-        unsubscribeInjuries = onSnapshot(collection(db, 'injuries'), (snapshot) => {
-          const fetched = snapshot.docs.map(doc => doc.data() as InjuryReport);
-          setInjuries(fetched);
-          localStorage.setItem('rugby_injuries', JSON.stringify(fetched));
-        }, (error) => {
-          console.warn('Injuries firestore subscription fallback:', error);
-        });
-
-        // 5. Physio Notes Collection
-        unsubscribePhysio = onSnapshot(collection(db, 'physio_notes'), (snapshot) => {
-          const fetched = snapshot.docs.map(doc => doc.data() as PhysioNote);
-          setPhysioNotes(fetched);
-          localStorage.setItem('rugby_physio_notes', JSON.stringify(fetched));
-        }, (error) => {
-          console.warn('Physio notes firestore subscription fallback:', error);
-        });
-
-        // 6. Tasks Collection
-        unsubscribeTasks = onSnapshot(collection(db, 'tasks'), (snapshot) => {
-          const fetched = snapshot.docs.map(doc => doc.data() as IndividualTask);
-          setTasks(fetched);
-          localStorage.setItem('rugby_tasks', JSON.stringify(fetched));
-        }, (error) => {
-          console.warn('Tasks firestore subscription fallback:', error);
-        });
-
-        // 7. RPE Feedbacks Collection
-        unsubscribeRpe = onSnapshot(collection(db, 'rpe_feedbacks'), (snapshot) => {
-          const fetched = snapshot.docs.map(doc => doc.data() as RpeFeedback);
-          setRpeFeedbacks(fetched);
-          localStorage.setItem('rugby_rpe_feedbacks', JSON.stringify(fetched));
-        }, (error) => {
-          console.warn('RPE firestore subscription fallback:', error);
-        });
-
-        // 8. Kicking Sessions Collection
-        unsubscribeKicking = onSnapshot(collection(db, 'kicking_sessions'), (snapshot) => {
-          const fetched = snapshot.docs.map(doc => doc.data() as KickingSession);
-          setKickingSessions(fetched);
-          localStorage.setItem('rugby_kicking_sessions', JSON.stringify(fetched));
-        }, (error) => {
-          console.warn('Kicking firestore subscription fallback:', error);
-        });
-
-        // 9. Individual Logs Collection
-        unsubscribeIndividualLogs = onSnapshot(collection(db, 'individual_logs'), (snapshot) => {
-          const fetched = snapshot.docs.map(doc => doc.data() as IndividualTrainingLog);
-          setIndividualLogs(fetched);
-          localStorage.setItem('rugby_individual_logs', JSON.stringify(fetched));
-        }, (error) => {
-          console.warn('Individual logs firestore subscription fallback:', error);
-        });
-
-        // 10. Push Notifications Collection
-        unsubscribeNotifications = onSnapshot(collection(db, 'push_notifications'), (snapshot) => {
-          const fetched = snapshot.docs.map(doc => doc.data() as PushNotification);
-          setNotifications(fetched);
-          localStorage.setItem('rugby_notifications', JSON.stringify(fetched));
-        }, (error) => {
-          console.warn('Notifications firestore subscription fallback:', error);
-        });
-
-      } catch (err) {
-        console.warn('Cloud sync error:', err);
-        setCloudSyncStatus('local_fallback');
-      }
+      return () => {
+        supabase.removeChannel(channel);
+      };
     };
 
-    setupFirestore();
+    const unsubscribers = [
+      watchTable<UserProfile>('players', setPlayers),
+      watchTable<TrainingSession>('training_sessions', setSessions),
+      watchTable<AttendanceRecord>('attendances', setAttendances),
+      watchTable<InjuryReport>('injuries', setInjuries),
+      watchTable<PhysioNote>('physio_notes', setPhysioNotes),
+      watchTable<IndividualTask>('tasks', setTasks),
+      watchTable<RpeFeedback>('rpe_feedbacks', setRpeFeedbacks),
+      watchTable<KickingSession>('kicking_sessions', setKickingSessions),
+      watchTable<IndividualTrainingLog>('individual_logs', setIndividualLogs),
+      watchTable<PushNotification>('push_notifications', setNotifications)
+    ];
 
     return () => {
-      if (unsubscribePlayers) unsubscribePlayers();
-      if (unsubscribeSessions) unsubscribeSessions();
-      if (unsubscribeAttendances) unsubscribeAttendances();
-      if (unsubscribeInjuries) unsubscribeInjuries();
-      if (unsubscribePhysio) unsubscribePhysio();
-      if (unsubscribeTasks) unsubscribeTasks();
-      if (unsubscribeRpe) unsubscribeRpe();
-      if (unsubscribeKicking) unsubscribeKicking();
-      if (unsubscribeIndividualLogs) unsubscribeIndividualLogs();
-      if (unsubscribeNotifications) unsubscribeNotifications();
+      unsubscribers.forEach(unsubscribe => unsubscribe());
     };
   }, []);
 
@@ -391,14 +224,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const target = attendances.find(a => a.id === recordId);
       if (target) {
-        const attRef = doc(db, 'attendances', recordId);
-        await setDoc(attRef, {
+        const updated = {
           ...target,
           status,
           staffNotes: notes !== undefined ? notes : target.staffNotes,
           lateMinutes: lateMin !== undefined ? lateMin : (status === 'late' ? 15 : 0),
           updatedAt: new Date().toISOString()
-        }, { merge: true });
+        };
+        const { error } = await supabase.from('attendances').upsert(updated);
+        if (error) throw error;
       }
     } catch (e) {
       console.warn('Attendance cloud write error, stored locally:', e);
@@ -412,8 +246,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const session = sessions.find(s => s.id === sessionId);
     if (!session) return;
 
-    const filteredPlayers = department && department !== 'all' 
-      ? players.filter(p => p.department === department) 
+    const filteredPlayers = department && department !== 'all'
+      ? players.filter(p => p.department === department)
       : players;
 
     const newRecords: AttendanceRecord[] = [];
@@ -448,9 +282,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Cloud persist all records
     try {
-      await Promise.all(
-        newRecords.map(rec => setDoc(doc(db, 'attendances', rec.id), rec, { merge: true }))
-      );
+      const { error } = await supabase.from('attendances').upsert(newRecords);
+      if (error) throw error;
     } catch (e) {
       console.warn('Bulk attendance cloud error:', e);
     } finally {
@@ -503,7 +336,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      await setDoc(doc(db, 'training_sessions', session.id), session, { merge: true });
+      const { error } = await supabase.from('training_sessions').upsert(session);
+      if (error) throw error;
     } catch (e) {
       console.warn('Session write to cloud error:', e);
     } finally {
@@ -516,7 +350,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setAttendances(prev => prev.filter(a => a.sessionId !== sessionId));
     setRpeFeedbacks(prev => prev.filter(r => r.sessionId !== sessionId));
     try {
-      await deleteDoc(doc(db, 'training_sessions', sessionId));
+      const { error } = await supabase.from('training_sessions').delete().eq('id', sessionId);
+      if (error) throw error;
     } catch (e) {
       console.warn('Delete session cloud error:', e);
     }
@@ -542,7 +377,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     try {
-      await setDoc(doc(db, 'rpe_feedbacks', newId), newFeedback, { merge: true });
+      const { error } = await supabase.from('rpe_feedbacks').upsert(newFeedback);
+      if (error) throw error;
     } catch (e) {
       console.warn('RPE cloud write error:', e);
     } finally {
@@ -580,7 +416,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     try {
-      await setDoc(doc(db, 'injuries', newId), newReport);
+      const { error } = await supabase.from('injuries').upsert(newReport);
+      if (error) throw error;
     } catch (e) {
       console.warn('Injury cloud write error:', e);
     } finally {
@@ -598,7 +435,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      await setDoc(doc(db, 'injuries', injury.id), updatedReport, { merge: true });
+      const { error } = await supabase.from('injuries').upsert(updatedReport);
+      if (error) throw error;
     } catch (e) {
       console.warn('Injury update error:', e);
     } finally {
@@ -609,7 +447,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const deleteInjuryReport = async (id: string) => {
     setInjuries(prev => prev.filter(i => i.id !== id));
     try {
-      await deleteDoc(doc(db, 'injuries', id));
+      const { error } = await supabase.from('injuries').delete().eq('id', id);
+      if (error) throw error;
     } catch (e) {
       console.warn('Delete injury cloud error:', e);
     }
@@ -620,7 +459,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const newNote: PhysioNote = { ...noteData, id: newId };
     setPhysioNotes(prev => [newNote, ...prev]);
     try {
-      await setDoc(doc(db, 'physio_notes', newId), newNote);
+      const { error } = await supabase.from('physio_notes').upsert(newNote);
+      if (error) throw error;
     } catch (e) {
       console.warn('Physio cloud note error:', e);
     }
@@ -629,7 +469,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const deletePhysioNote = async (id: string) => {
     setPhysioNotes(prev => prev.filter(n => n.id !== id));
     try {
-      await deleteDoc(doc(db, 'physio_notes', id));
+      const { error } = await supabase.from('physio_notes').delete().eq('id', id);
+      if (error) throw error;
     } catch (e) {
       console.warn('Delete physio note cloud error:', e);
     }
@@ -655,7 +496,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     try {
-      await setDoc(doc(db, 'tasks', newId), newTask);
+      const { error } = await supabase.from('tasks').upsert(newTask);
+      if (error) throw error;
     } catch (e) {
       console.warn('Task cloud write error:', e);
     } finally {
@@ -666,7 +508,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateTask = async (task: IndividualTask) => {
     setTasks(prev => prev.map(t => t.id === task.id ? task : t));
     try {
-      await setDoc(doc(db, 'tasks', task.id), task, { merge: true });
+      const { error } = await supabase.from('tasks').upsert(task);
+      if (error) throw error;
     } catch (e) {
       console.warn('Task update error:', e);
     }
@@ -675,16 +518,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const deleteTask = async (taskId: string) => {
     setTasks(prev => prev.filter(t => t.id !== taskId));
     try {
-      await deleteDoc(doc(db, 'tasks', taskId));
+      const { error } = await supabase.from('tasks').delete().eq('id', taskId);
+      if (error) throw error;
     } catch (e) {
       console.warn('Task delete error:', e);
     }
   };
 
   const toggleTaskCompletion = async (taskId: string, playerId: string, completed: boolean, note?: string) => {
+    let updatedTask: IndividualTask | undefined;
+
     setTasks(prev => prev.map(t => {
       if (t.id === taskId) {
-        return {
+        updatedTask = {
           ...t,
           completions: {
             ...t.completions,
@@ -695,24 +541,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           }
         };
+        return updatedTask;
       }
       return t;
     }));
 
     try {
-      const task = tasks.find(t => t.id === taskId);
-      if (task) {
-        await setDoc(doc(db, 'tasks', taskId), {
-          ...task,
-          completions: {
-            ...task.completions,
-            [playerId]: {
-              completed,
-              completedAt: completed ? new Date().toISOString() : undefined,
-              note: note || task.completions[playerId]?.note
-            }
-          }
-        }, { merge: true });
+      if (updatedTask) {
+        const { error } = await supabase.from('tasks').upsert(updatedTask);
+        if (error) throw error;
       }
     } catch (e) {
       console.warn('Task toggle error:', e);
@@ -724,7 +561,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const newKick: KickingSession = { ...kickData, id: newId };
     setKickingSessions(prev => [newKick, ...prev]);
     try {
-      await setDoc(doc(db, 'kicking_sessions', newId), newKick);
+      const { error } = await supabase.from('kicking_sessions').upsert(newKick);
+      if (error) throw error;
     } catch (e) {
       console.warn('Kicking cloud write error:', e);
     }
@@ -735,7 +573,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const newLog: IndividualTrainingLog = { ...logData, id: newId };
     setIndividualLogs(prev => [newLog, ...prev]);
     try {
-      await setDoc(doc(db, 'individual_logs', newId), newLog);
+      const { error } = await supabase.from('individual_logs').upsert(newLog);
+      if (error) throw error;
     } catch (e) {
       console.warn('Ind log write error:', e);
     }
@@ -744,7 +583,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updatePlayer = async (player: UserProfile) => {
     setPlayers(prev => prev.map(p => p.id === player.id ? player : p));
     try {
-      await setDoc(doc(db, 'players', player.id), player, { merge: true });
+      const { error } = await supabase.from('players').upsert(player);
+      if (error) throw error;
     } catch (e) {
       console.warn('Player update error:', e);
     }
@@ -759,7 +599,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     setPlayers(prev => [...prev, newPlayer]);
     try {
-      await setDoc(doc(db, 'players', newId), newPlayer);
+      const { error } = await supabase.from('players').upsert(newPlayer);
+      if (error) throw error;
     } catch (e) {
       console.warn('Player add error:', e);
     }
@@ -768,7 +609,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const deletePlayer = async (playerId: string) => {
     setPlayers(prev => prev.filter(p => p.id !== playerId));
     try {
-      await deleteDoc(doc(db, 'players', playerId));
+      const { error } = await supabase.from('players').delete().eq('id', playerId);
+      if (error) throw error;
     } catch (e) {
       console.warn('Delete player cloud error:', e);
     }
@@ -779,12 +621,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let finalPlayers: UserProfile[] = [];
     if (replaceExisting) {
       finalPlayers = newPlayers;
-      // Wipe old players in Firestore to remove fictitious/demo players completely
+      // Wipe old players in Supabase to remove fictitious/demo players completely
       try {
-        const snap = await getDocs(collection(db, 'players'));
-        await Promise.all(snap.docs.map(d => deleteDoc(doc(db, 'players', d.id))));
+        await deleteAllRows('players');
       } catch (e) {
-        console.warn('Error clearing old players from Firestore:', e);
+        console.warn('Error clearing old players from Supabase:', e);
       }
     } else {
       // Merge by email / name
@@ -796,15 +637,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     setPlayers(finalPlayers);
-    localStorage.setItem('rugby_roster_players', JSON.stringify(finalPlayers));
+    localStorage.setItem(TABLE_STORAGE_KEYS.players, JSON.stringify(finalPlayers));
 
-    // Persist all players to Firestore
+    // Persist all players to Supabase
     try {
-      await Promise.all(
-        finalPlayers.map(p => setDoc(doc(db, 'players', p.id), p, { merge: true }))
-      );
+      const { error } = await supabase.from('players').upsert(finalPlayers);
+      if (error) throw error;
     } catch (e) {
-      console.warn('Batch Firestore write warning:', e);
+      console.warn('Batch Supabase write warning:', e);
     } finally {
       setIsSyncing(false);
     }
@@ -837,7 +677,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      await setDoc(doc(db, 'push_notifications', newId), newNotif);
+      const { error } = await supabase.from('push_notifications').upsert(newNotif);
+      if (error) throw error;
     } catch (e) {
       console.warn('Notif cloud write error:', e);
     }
@@ -867,20 +708,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setNotifications([]);
 
     // 2. Overwrite localStorage keys with empty arrays
-    localStorage.setItem('rugby_roster_players', JSON.stringify([]));
-    localStorage.setItem('rugby_training_sessions', JSON.stringify([]));
-    localStorage.setItem('rugby_attendances', JSON.stringify([]));
-    localStorage.setItem('rugby_rpe_feedbacks', JSON.stringify([]));
-    localStorage.setItem('rugby_injuries', JSON.stringify([]));
-    localStorage.setItem('rugby_physio_notes', JSON.stringify([]));
-    localStorage.setItem('rugby_tasks', JSON.stringify([]));
-    localStorage.setItem('rugby_kicking_sessions', JSON.stringify([]));
-    localStorage.setItem('rugby_individual_logs', JSON.stringify([]));
-    localStorage.setItem('rugby_notifications', JSON.stringify([]));
+    Object.values(TABLE_STORAGE_KEYS).forEach(key => {
+      localStorage.setItem(key, JSON.stringify([]));
+    });
 
-    // 3. Clear Firestore collections in the cloud
+    // 3. Clear Supabase tables in the cloud
     try {
-      const collectionsToWipe = [
+      const tablesToWipe = [
         'training_sessions',
         'attendances',
         'rpe_feedbacks',
@@ -892,18 +726,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         'players',
         'push_notifications'
       ];
-      
-      for (const colName of collectionsToWipe) {
+
+      for (const table of tablesToWipe) {
         try {
-          const snap = await getDocs(collection(db, colName));
-          const deletes = snap.docs.map(d => deleteDoc(doc(db, colName, d.id)));
-          await Promise.all(deletes);
+          await deleteAllRows(table);
         } catch (e) {
-          console.warn(`Error wiping collection ${colName}:`, e);
+          console.warn(`Error wiping table ${table}:`, e);
         }
       }
     } catch (err) {
-      console.warn('Firestore cloud wipe error:', err);
+      console.warn('Supabase cloud wipe error:', err);
     } finally {
       setIsSyncing(false);
     }
