@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 180" fill="none">
+  <!-- Villorba Rugby Official Logo Vector -->
+  <g stroke="#002B5C" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <!-- Spikes / Aculei del riccio -->
+    <path d="M 68 15 L 72 2 L 84 20 L 96 6 L 102 28 L 118 18 L 116 40 L 134 32 L 126 56 L 142 54 L 128 74 L 140 82 L 124 96 L 132 110 L 112 114" />
+    
+    <!-- Head, Snout, and Body Profile -->
+    <path d="M 68 15 C 54 20, 42 32, 30 42 L 16 52 C 12 55, 12 58, 18 60 L 36 62 C 40 68, 38 78, 48 80 C 42 88, 38 98, 44 108 C 48 116, 42 126, 48 134" />
+    
+    <!-- Nose tip -->
+    <circle cx="16" cy="54" r="3.5" fill="#002B5C" />
+    
+    <!-- Eye and Smile -->
+    <path d="M 38 48 Q 42 42 44 48" stroke-width="4" />
+    <circle cx="41" cy="46" r="2" fill="#002B5C" />
+    <path d="M 32 64 Q 38 68 44 65" stroke-width="3.5" />
+    
+    <!-- Ear -->
+    <path d="M 52 38 C 52 32, 58 32, 58 40" stroke-width="3.5" />
+    
+    <!-- Fur tufts under chin -->
+    <path d="M 36 72 L 28 80 L 38 82 L 30 92 L 42 94" />
+    
+    <!-- Rugby Ball -->
+    <path d="M 72 62 C 62 72, 60 95, 74 112 C 88 128, 102 122, 106 106 C 110 90, 100 68, 86 62 Z" stroke-width="4.5" />
+    <path d="M 77 64 Q 86 88 98 116" stroke-width="3" stroke-dasharray="6 3" />
+    
+    <!-- Arms Grasping Ball -->
+    <path d="M 48 80 C 52 82, 58 84, 66 84 L 70 80 C 74 78, 76 86, 70 88 L 64 90 C 56 94, 52 98, 50 102" stroke-width="4" />
+    <path d="M 100 82 C 106 82, 112 86, 110 94 C 108 100, 102 102, 96 102" stroke-width="4" />
+    
+    <!-- Feet / Paws -->
+    <path d="M 52 130 C 50 140, 46 148, 38 152 C 28 156, 22 164, 26 172 C 30 178, 40 178, 46 172 C 50 178, 60 178, 64 172 C 68 178, 78 176, 76 166 C 74 156, 68 148, 64 134" stroke-width="4.5" />
+    <path d="M 88 128 C 90 138, 92 148, 98 152 C 96 162, 104 170, 112 170 C 118 170, 124 164, 126 156 C 128 164, 136 164, 138 156 C 140 148, 134 140, 128 136 C 120 130, 114 126, 110 114" stroke-width="4.5" />
+  </g>
+  
+  <!-- Text: VILLORBA RUGBY -->
+  <text x="180" y="90" font-family="'Plus Jakarta Sans', Arial, sans-serif" font-size="58" font-weight="900" fill="#002B5C" letter-spacing="4">VILLORBA</text>
+  <text x="185" y="148" font-family="'Plus Jakarta Sans', Arial, sans-serif" font-size="44" font-weight="700" fill="#002B5C" letter-spacing="24">RUGBY</text>
+</svg>
