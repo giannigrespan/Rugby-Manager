@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../supabase/config';
 import { UserProfile, UserRole, ConfigurableSection, DEFAULT_ROLE_PERMISSIONS } from '../types';
 import { 
   KeyRound, 
@@ -196,6 +197,7 @@ export const UserCredentialsAdminView: React.FC = () => {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showPasswordMap, setShowPasswordMap] = useState<Record<string, boolean>>({});
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+  const [credentialsActionId, setCredentialsActionId] = useState<string | null>(null);
   
   // Modals state
   const [showSheetModal, setShowSheetModal] = useState<boolean>(false);
@@ -231,11 +233,6 @@ export const UserCredentialsAdminView: React.FC = () => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
-  };
-
-  const generateDefaultPassword = (name: string) => {
-    const clean = name.toLowerCase().replace(/[^a-z]/g, '');
-    return `Rugby2025!${clean.slice(0, 4)}`;
   };
 
   const handleToggleAdmin = async (user: UserProfile) => {
@@ -288,15 +285,29 @@ export const UserCredentialsAdminView: React.FC = () => {
     }
   };
 
-  const handleSendCredentialsEmail = (user: UserProfile) => {
-    setFeedbackMessage(`Credenziali inviate con successo a ${user.email}`);
-    setTimeout(() => setFeedbackMessage(null), 3500);
+  const invokeCredentialsAction = async (user: UserProfile, action: 'create' | 'reset_password') => {
+    setCredentialsActionId(user.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-manage-credentials', {
+        body: { action, email: user.email }
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setFeedbackMessage(
+        action === 'create'
+          ? `Account creato per ${user.email}. Password temporanea: ${data.password} — comunicala tu stesso all'utente.`
+          : `Password reimpostata per ${user.email}. Nuova password: ${data.password} — comunicala tu stesso all'utente.`
+      );
+    } catch (err: any) {
+      setFeedbackMessage(`Errore: ${err.message || 'operazione non riuscita.'}`);
+    } finally {
+      setCredentialsActionId(null);
+      setTimeout(() => setFeedbackMessage(null), 8000);
+    }
   };
 
-  const handleResetPassword = (user: UserProfile) => {
-    setFeedbackMessage(`Link di reset password inviato a ${user.email}`);
-    setTimeout(() => setFeedbackMessage(null), 3500);
-  };
+  const handleCreateAccount = (user: UserProfile) => invokeCredentialsAction(user, 'create');
+  const handleResetPassword = (user: UserProfile) => invokeCredentialsAction(user, 'reset_password');
 
   const handleSaveStaff = async (staffData: Omit<UserProfile, 'id' | 'createdAt'> | UserProfile) => {
     if ('id' in staffData && staffData.id) {
@@ -757,7 +768,7 @@ export const UserCredentialsAdminView: React.FC = () => {
                     filteredUsers.map((user) => {
                       const isStaff = user.role !== 'player';
                       const isUserAdmin = user.isAdmin || user.role === 'direttore_tecnico';
-                      const pwd = user.tempPassword || generateDefaultPassword(user.name);
+                      const pwd = user.tempPassword;
                       const isPasswordVisible = showPasswordMap[user.id] || false;
 
                       return (
@@ -844,23 +855,27 @@ export const UserCredentialsAdminView: React.FC = () => {
 
                           {/* Password / Pin */}
                           <td className="p-3.5">
-                            <div className="flex items-center gap-2 font-mono bg-[#1D1D21] px-2.5 py-1.5 rounded-lg border border-[#2A2A2E] w-fit">
-                              <span className="text-gray-200">{isPasswordVisible ? pwd : '••••••••••••'}</span>
-                              <button
-                                onClick={() => toggleShowPassword(user.id)}
-                                className="text-gray-400 hover:text-white p-0.5"
-                                title="Mostra / Nascondi password"
-                              >
-                                {isPasswordVisible ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5 text-[#D4AF37]" />}
-                              </button>
-                              <button
-                                onClick={() => copyToClipboard(pwd, user.id)}
-                                className="text-gray-400 hover:text-[#D4AF37] p-0.5"
-                                title="Copia password"
-                              >
-                                {copiedId === user.id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-gray-400" />}
-                              </button>
-                            </div>
+                            {pwd ? (
+                              <div className="flex items-center gap-2 font-mono bg-[#1D1D21] px-2.5 py-1.5 rounded-lg border border-[#2A2A2E] w-fit">
+                                <span className="text-gray-200">{isPasswordVisible ? pwd : '••••••••••••'}</span>
+                                <button
+                                  onClick={() => toggleShowPassword(user.id)}
+                                  className="text-gray-400 hover:text-white p-0.5"
+                                  title="Mostra / Nascondi password"
+                                >
+                                  {isPasswordVisible ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5 text-[#D4AF37]" />}
+                                </button>
+                                <button
+                                  onClick={() => copyToClipboard(pwd, user.id)}
+                                  className="text-gray-400 hover:text-[#D4AF37] p-0.5"
+                                  title="Copia password"
+                                >
+                                  {copiedId === user.id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-gray-400" />}
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-[11px] text-gray-500 italic">Nessun accesso creato — usa "Crea Accesso"</span>
+                            )}
                           </td>
 
                           {/* Azioni & Modifica */}
@@ -881,20 +896,22 @@ export const UserCredentialsAdminView: React.FC = () => {
                               )}
 
                               <button
-                                onClick={() => handleSendCredentialsEmail(user)}
-                                className="px-2 py-1 bg-[#1D1D21] hover:bg-[#26262B] text-gray-300 rounded-lg text-xs font-semibold flex items-center gap-1 border border-[#2A2A2E] transition-colors"
-                                title="Invia credenziali via email"
+                                onClick={() => handleCreateAccount(user)}
+                                disabled={credentialsActionId === user.id}
+                                className="px-2 py-1 bg-[#1D1D21] hover:bg-[#26262B] text-gray-300 rounded-lg text-xs font-semibold flex items-center gap-1 border border-[#2A2A2E] transition-colors disabled:opacity-50"
+                                title="Crea un accesso reale (email + password temporanea) per chi non ha un account Google"
                               >
-                                <Send className="w-3 h-3 text-[#D4AF37]" />
-                                <span className="hidden lg:inline">Email</span>
+                                <Send className={`w-3 h-3 text-[#D4AF37] ${credentialsActionId === user.id ? 'animate-spin' : ''}`} />
+                                <span className="hidden lg:inline">Crea Accesso</span>
                               </button>
 
                               <button
                                 onClick={() => handleResetPassword(user)}
-                                className="px-2 py-1 bg-[#1D1D21] hover:bg-[#26262B] text-gray-300 rounded-lg text-xs font-semibold flex items-center gap-1 border border-[#2A2A2E] transition-colors"
-                                title="Reset password"
+                                disabled={credentialsActionId === user.id}
+                                className="px-2 py-1 bg-[#1D1D21] hover:bg-[#26262B] text-gray-300 rounded-lg text-xs font-semibold flex items-center gap-1 border border-[#2A2A2E] transition-colors disabled:opacity-50"
+                                title="Reimposta la password di un account già esistente"
                               >
-                                <RefreshCw className="w-3 h-3 text-gray-400" />
+                                <RefreshCw className={`w-3 h-3 text-gray-400 ${credentialsActionId === user.id ? 'animate-spin' : ''}`} />
                               </button>
 
                               <button
