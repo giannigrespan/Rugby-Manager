@@ -156,7 +156,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // then subscribe to Postgres changes and reload on every change.
     const watchTable = <T,>(table: string, setState: (rows: T[]) => void, markSyncedOnLoad = true) => {
       const load = async () => {
-        const { data, error } = await supabase.from(table).select('*');
+        // Order by id for a stable, repeatable ordering: without it Postgres
+        // can return rows in a different order on each refetch, making the
+        // UI (cards/rows) visibly reshuffle every time a realtime event fires.
+        const { data, error } = await supabase.from(table).select('*').order('id', { ascending: true });
         if (error) {
           console.warn(`${table} Supabase subscription fallback:`, error);
           setCloudSyncStatus(prev => (prev === 'synced' ? prev : 'local_fallback'));
