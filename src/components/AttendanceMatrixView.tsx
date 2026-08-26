@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
+import { exportToCsv } from '../utils/csvExport';
 import { 
   AttendanceRecord, 
   AttendanceStatus, 
@@ -211,14 +212,7 @@ export const AttendanceMatrixView: React.FC = () => {
       return [p.jerseyNumber || '', `"${p.name}"`, `"${p.position}"`, p.department.toUpperCase(), `${pct}%`, ...sessionValues];
     });
 
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `matrice_presenze_rugby_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    exportToCsv(`matrice_presenze_rugby_${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
   };
 
   const currentWeekMonday = formatItDate(getMondayOfWeek(new Date().toISOString().slice(0, 10)));

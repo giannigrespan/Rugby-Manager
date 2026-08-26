@@ -36,6 +36,13 @@ interface AuthContextType {
   clearStaffMembers: () => Promise<void>;
 }
 
+// Whitelist di identità autorizzate ad aprire il pannello "Gestione Credenziali & Accessi".
+// Tenere sincronizzata con la stessa whitelist nella Edge Function supabase/functions/admin-manage-credentials/index.ts.
+const CREDENTIALS_PANEL_EMAILS = ['alberto.tonetto@gmail.com', 'gianni.grespan@gmail.com'];
+
+export const canAccessCredentialsPanel = (user: UserProfile | null): boolean =>
+  !!user && CREDENTIALS_PANEL_EMAILS.includes((user.email || '').toLowerCase());
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // In-memory token cache: Supabase only hands back the Google provider token
@@ -207,10 +214,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // If not logged in, fall back to player permissions
     if (!user) {
       return rolePermissions['player']?.[section] ?? DEFAULT_ROLE_PERMISSIONS['player']?.[section] ?? true;
-    }
-    // Full Administrator (Direttore Tecnico / Dirigente) always has access to all sections
-    if (user.isAdmin || user.role === 'direttore_tecnico') {
-      return true;
     }
     const role = user.role || 'player';
     return rolePermissions[role]?.[section] ?? DEFAULT_ROLE_PERMISSIONS[role]?.[section] ?? true;

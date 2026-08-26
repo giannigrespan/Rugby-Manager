@@ -31,22 +31,12 @@ function randomPassword(): string {
   return out;
 }
 
-async function checkIsAdmin(adminClient: SupabaseClient, callerId: string, callerEmail: string): Promise<boolean> {
-  if (callerEmail.toLowerCase() === 'gianni.grespan@gmail.com') return true;
+// Tenere sincronizzata con CREDENTIALS_PANEL_EMAILS in src/context/AuthContext.tsx:
+// solo queste identità possono creare account o resettare password privilegiate.
+const CREDENTIALS_PANEL_EMAILS = ['alberto.tonetto@gmail.com', 'gianni.grespan@gmail.com'];
 
-  const { data: byId } = await adminClient
-    .from('user_accounts')
-    .select('isAdmin, role')
-    .eq('id', callerId)
-    .maybeSingle();
-  if (byId && (byId.isAdmin || byId.role === 'direttore_tecnico')) return true;
-
-  const { data: byEmail } = await adminClient
-    .from('staff_users')
-    .select('isAdmin, role')
-    .eq('email', callerEmail.toLowerCase())
-    .maybeSingle();
-  return Boolean(byEmail && (byEmail.isAdmin || byEmail.role === 'direttore_tecnico'));
+async function checkIsAdmin(_adminClient: SupabaseClient, _callerId: string, callerEmail: string): Promise<boolean> {
+  return CREDENTIALS_PANEL_EMAILS.includes(callerEmail.toLowerCase());
 }
 
 async function findRosterProfile(adminClient: SupabaseClient, email: string): Promise<Record<string, unknown> | null> {

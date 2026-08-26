@@ -19,7 +19,7 @@ import { NotificationCenterModal } from './components/modals/NotificationCenterM
 import { AuthModal } from './components/modals/AuthModal';
 import { VillorbaHedgehogIcon } from './components/VillorbaLogo';
 import { Menu, Bell, LogIn, CalendarSync, Shield, FileText } from 'lucide-react';
-import { useAuth } from './context/AuthContext';
+import { useAuth, canAccessCredentialsPanel } from './context/AuthContext';
 
 const AppContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('presenze');
@@ -201,7 +201,7 @@ const AppContent: React.FC = () => {
           {activeTab === 'rosa' && <RosterDirectoryView />}
           {activeTab === 'sessioni' && <SessionManagementView />}
           {activeTab === 'compiti' && <TaskAssignmentView />}
-          {activeTab === 'credenziali' && <UserCredentialsAdminView />}
+          {activeTab === 'credenziali' && canAccessCredentialsPanel(currentUser) && <UserCredentialsAdminView />}
           {activeTab === 'privacy' && <PrivacyPolicyView onBack={() => navigateToTab('presenze')} />}
           {activeTab === 'terms' && <TermsOfServiceView onBack={() => navigateToTab('presenze')} />}
         </main>

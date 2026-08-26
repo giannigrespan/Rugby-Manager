@@ -2,17 +2,19 @@ import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { KickingSession } from '../types';
-import { 
-  Target, 
-  Plus, 
-  Award, 
-  Crosshair, 
-  Clock, 
-  TrendingUp, 
+import { exportToCsv } from '../utils/csvExport';
+import {
+  Target,
+  Plus,
+  Award,
+  Crosshair,
+  Clock,
+  TrendingUp,
   Sparkles,
   Flame,
   CheckCircle,
-  Percent
+  Percent,
+  Download
 } from 'lucide-react';
 
 export const KickingSpecialistsView: React.FC = () => {
@@ -75,6 +77,26 @@ export const KickingSpecialistsView: React.FC = () => {
     setNotes('');
   };
 
+  const handleExportCsv = () => {
+    exportToCsv(
+      `calci_specialisti_${new Date().toISOString().slice(0, 10)}.csv`,
+      ['Data', 'Giocatrice', 'Durata (min)', 'Calci Totali', 'Calci Riusciti', 'Precisione %', 'Piazzati Riusciti/Tot', 'Drop Riusciti/Tot', 'Spostamento Riusciti/Tot', 'Up&Under Riusciti/Tot', 'Note'],
+      kickingSessions.map(ks => [
+        ks.date,
+        `"${ks.playerName}"`,
+        ks.durationMin,
+        ks.totalKicks,
+        ks.successfulKicks,
+        Math.round((ks.successfulKicks / ks.totalKicks) * 100) || 0,
+        `${ks.stats.piazzati.success}/${ks.stats.piazzati.total}`,
+        `${ks.stats.drop.success}/${ks.stats.drop.total}`,
+        `${ks.stats.spostamento.success}/${ks.stats.spostamento.total}`,
+        `${ks.stats.upAndUnder.success}/${ks.stats.upAndUnder.total}`,
+        `"${(ks.notes || '').replace(/"/g, "'")}"`
+      ])
+    );
+  };
+
   return (
     <div id="kicking-specialists-container" className="space-y-6 animate-in fade-in duration-300">
       
@@ -97,14 +119,24 @@ export const KickingSpecialistsView: React.FC = () => {
           </div>
         </div>
 
-        <button
-          id="btn-add-kicking-session"
-          onClick={() => setShowModal(true)}
-          className="px-4 py-2.5 bg-[#D4AF37] hover:bg-[#C09F30] text-black text-xs font-bold rounded-lg shadow-md flex items-center gap-2 transition-all active:scale-95"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Registra Sessione Calci (45m)</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            id="btn-export-kicking-csv"
+            onClick={handleExportCsv}
+            className="flex items-center gap-1.5 px-3 py-2 bg-[#1D1D21] hover:bg-[#26262B] text-gray-300 hover:text-white rounded-lg border border-[#2A2A2E] text-xs font-medium transition-colors"
+          >
+            <Download className="w-3.5 h-3.5 text-[#D4AF37]" />
+            <span>Esporta CSV</span>
+          </button>
+          <button
+            id="btn-add-kicking-session"
+            onClick={() => setShowModal(true)}
+            className="px-4 py-2.5 bg-[#D4AF37] hover:bg-[#C09F30] text-black text-xs font-bold rounded-lg shadow-md flex items-center gap-2 transition-all active:scale-95"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Registra Sessione Calci (45m)</span>
+          </button>
+        </div>
       </div>
 
       {/* Specialist Kicker Cards */}
