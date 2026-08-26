@@ -215,7 +215,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Supabase real-time sync for staff users
   useEffect(() => {
     const loadStaffUsers = async () => {
-      const { data, error } = await supabase.from('staff_users').select('*');
+      const { data, error } = await supabase.from('staff_users').select('*').order('createdAt', { ascending: true });
       if (error) {
         console.warn('Staff users Supabase read warning:', error);
         return;
