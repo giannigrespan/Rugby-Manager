@@ -346,75 +346,15 @@ export const SessionManagementView: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[11px]">Luogo / Campo:</label>
-                  <input
-                    type="text"
-                    required
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    className="w-full px-3 py-2 bg-[#1D1D21] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] focus:outline-none focus:border-[#D4AF37]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[11px]">Tipologia Allenamento:</label>
-                  <select
-                    value={type}
-                    onChange={(e) => setType(e.target.value as any)}
-                    className="w-full px-3 py-2 bg-[#1D1D21] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] focus:outline-none focus:border-[#D4AF37]"
-                  >
-                    <option value="technical_tactical">Tecnico - Tattico</option>
-                    <option value="physical_strength">Fisico / Forza & Speed</option>
-                    <option value="scrum_lineout">Mischia Ordinata & Touche</option>
-                    <option value="kicking_specialists">Calci Trequarti</option>
-                    <option value="recovery_mobility">Recupero & Mobilità</option>
-                    <option value="match_captain_run">Captain's Run / Partita</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[11px]">Reparto Target:</label>
-                  <select
-                    value={departmentTarget}
-                    onChange={(e) => setDepartmentTarget(e.target.value as any)}
-                    className="w-full px-3 py-2 bg-[#1D1D21] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] focus:outline-none focus:border-[#D4AF37]"
-                  >
-                    <option value="all">Tutta la Squadra</option>
-                    <option value="avanti">Solo Avanti</option>
-                    <option value="trequarti">Solo Trequarti</option>
-                    <option value="kicking">Specialisti Calci</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[11px]">RPE Previsto (1-10):</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="10"
-                    value={plannedRpe}
-                    onChange={(e) => setPlannedRpe(parseInt(e.target.value) || 7)}
-                    className="w-full px-3 py-2 bg-[#1D1D21] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] focus:outline-none focus:border-[#D4AF37]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[11px]">Stato Sessione:</label>
-                  <select
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value as any)}
-                    className="w-full px-3 py-2 bg-[#1D1D21] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] focus:outline-none focus:border-[#D4AF37]"
-                  >
-                    <option value="scheduled">Programmata</option>
-                    <option value="in_progress">In Corso</option>
-                    <option value="completed">Completata</option>
-                    <option value="cancelled">Annullata</option>
-                  </select>
-                </div>
+              <div>
+                <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[11px]">Luogo / Campo:</label>
+                <input
+                  type="text"
+                  required
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  className="w-full px-3 py-2 bg-[#1D1D21] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] focus:outline-none focus:border-[#D4AF37]"
+                />
               </div>
 
               <div>
