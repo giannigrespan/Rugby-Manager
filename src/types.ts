@@ -193,6 +193,7 @@ export interface KickingSession {
     destra: number;
     sinistra: number;
   };
+  extraSkills?: { label: string; minutes: number }[]; // skill generici di calcio non tracciati sopra, valorizzati solo a minuti
   notes?: string;
 }
 
