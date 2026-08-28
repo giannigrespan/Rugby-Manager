@@ -41,7 +41,7 @@ const getMondayOfWeek = (dateStr: string): Date => {
 const formatItDate = (d: Date): string => d.toLocaleDateString('it-IT', { day: '2-digit', month: 'long' });
 
 export const AttendanceMatrixView: React.FC = () => {
-  const { players, sessions, attendances, updateAttendance, bulkMarkSessionAttendance, isSyncing, attendanceWindowOpen, setAttendanceWindowOpen } = useData();
+  const { players, sessions, attendances, updateAttendance, attendanceWindowOpen, setAttendanceWindowOpen } = useData();
   const { currentUser } = useAuth();
 
   const [selfDeclareCell, setSelfDeclareCell] = useState<{
@@ -54,7 +54,6 @@ export const AttendanceMatrixView: React.FC = () => {
 
   const [selectedDepartment, setSelectedDepartment] = useState<'all' | 'avanti' | 'trequarti'>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedSessionId, setSelectedSessionId] = useState<string>(sessions[0]?.id || '');
   const [editingCell, setEditingCell] = useState<{
     recordId: string;
     playerName: string;
@@ -148,6 +147,12 @@ export const AttendanceMatrixView: React.FC = () => {
             RIT
           </span>
         );
+      case 'not_declared':
+        return (
+          <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-800 text-slate-400 border border-slate-600/40 font-bold text-[10px] shadow-sm hover:bg-slate-700/60 transition-colors">
+            ND
+          </span>
+        );
       default:
         return (
           <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-800 text-slate-500 text-xs">
@@ -163,7 +168,7 @@ export const AttendanceMatrixView: React.FC = () => {
     !isStaff && currentUser?.id === player.id && session.status === 'scheduled' && attendanceWindowOpen;
 
   const handleCellClick = (record: AttendanceRecord | undefined, player: UserProfile, session: TrainingSession) => {
-    const currentStatus = record ? record.status : (player.status === 'injured' ? 'injured_diff' : 'present');
+    const currentStatus = record ? record.status : (player.status === 'injured' ? 'injured_diff' : 'not_declared');
     const recId = record ? record.id : `att-${session.id}-${player.id}`;
 
     if (isStaff) {
@@ -374,36 +379,6 @@ export const AttendanceMatrixView: React.FC = () => {
 
         {/* Staff Quick Actions */}
         <div className="flex items-center gap-2 flex-wrap">
-          {isStaff && (
-            <>
-              <div className="flex items-center gap-1.5">
-                <select
-                  id="select-bulk-session"
-                  value={selectedSessionId}
-                  onChange={(e) => setSelectedSessionId(e.target.value)}
-                  className="bg-[#1D1D21] text-[#E0E0E1] text-xs px-3 py-2 rounded-lg border border-[#2A2A2E] focus:outline-none focus:border-[#D4AF37]"
-                >
-                  {activeSessions.map(s => (
-                    <option key={s.id} value={s.id}>
-                      {s.date.slice(5)} - {s.title}
-                    </option>
-                  ))}
-                </select>
-
-                <button
-                  id="btn-bulk-present-all"
-                  onClick={() => bulkMarkSessionAttendance(selectedSessionId, 'present', selectedDepartment)}
-                  disabled={isSyncing}
-                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow-md transition-all active:scale-95 disabled:opacity-50"
-                  title="Segna tutte le atlete filtrate come presenti nella sessione selezionata"
-                >
-                  <Check className="w-3.5 h-3.5" />
-                  <span>Segna Tutte Presenti</span>
-                </button>
-              </div>
-            </>
-          )}
-
           <button
             id="btn-export-attendance-csv"
             onClick={exportAttendanceCSV}
@@ -438,6 +413,10 @@ export const AttendanceMatrixView: React.FC = () => {
           <span className="flex items-center gap-1.5">
             <span className="w-5 h-5 rounded bg-orange-500/20 text-orange-400 border border-orange-500/30 text-[10px] font-bold flex items-center justify-center">RIT</span>
             <span>Ritardo</span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-5 h-5 rounded bg-slate-800 text-slate-400 border border-slate-600/40 text-[9px] font-bold flex items-center justify-center">ND</span>
+            <span>Non Dichiarata</span>
           </span>
         </div>
         <p className="text-[11px] text-[#D4AF37] italic flex items-center gap-1">
@@ -538,9 +517,9 @@ export const AttendanceMatrixView: React.FC = () => {
                     {/* Session Presence Cells */}
                     {activeSessions.map(session => {
                       const record = getRecord(session.id, player.id);
-                      const status: AttendanceStatus = record 
-                        ? record.status 
-                        : (player.status === 'injured' ? 'injured_diff' : 'present');
+                      const status: AttendanceStatus = record
+                        ? record.status
+                        : (player.status === 'injured' ? 'injured_diff' : 'not_declared');
 
                       const selfDeclareEligible = canSelfDeclare(player, session);
 
@@ -760,7 +739,8 @@ export const AttendanceMatrixView: React.FC = () => {
               <button
                 type="button"
                 onClick={saveSelfDeclare}
-                className="px-4 py-2 bg-[#D4AF37] hover:bg-[#C09F30] text-black text-xs font-bold rounded-lg shadow-md transition-all active:scale-95 flex items-center gap-1.5"
+                disabled={selfDeclareCell.currentStatus === 'not_declared'}
+                className="px-4 py-2 bg-[#D4AF37] hover:bg-[#C09F30] text-black text-xs font-bold rounded-lg shadow-md transition-all active:scale-95 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Check className="w-4 h-4" />
                 Conferma

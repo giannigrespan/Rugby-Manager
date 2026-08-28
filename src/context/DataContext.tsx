@@ -32,7 +32,6 @@ interface DataContextType {
   // Actions
   setAttendanceWindowOpen: (isOpen: boolean, updatedBy?: string) => Promise<void>;
   updateAttendance: (recordId: string, status: AttendanceRecord['status'], notes?: string, lateMin?: number) => Promise<void>;
-  bulkMarkSessionAttendance: (sessionId: string, status: AttendanceRecord['status'], department?: string) => Promise<void>;
   addOrUpdateSession: (session: TrainingSession) => Promise<void>;
   deleteSession: (sessionId: string) => Promise<void>;
   submitRpeFeedback: (feedback: Omit<RpeFeedback, 'id' | 'submittedAt'>) => Promise<void>;
@@ -291,56 +290,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const bulkMarkSessionAttendance = async (sessionId: string, status: AttendanceRecord['status'], department?: string) => {
-    setIsSyncing(true);
-    const session = sessions.find(s => s.id === sessionId);
-    if (!session) return;
-
-    const filteredPlayers = department && department !== 'all'
-      ? players.filter(p => p.department === department)
-      : players;
-
-    const newRecords: AttendanceRecord[] = [];
-
-    setAttendances(prev => {
-      const updated = [...prev];
-      filteredPlayers.forEach(player => {
-        const existingIdx = updated.findIndex(a => a.sessionId === sessionId && a.playerId === player.id);
-        const record: AttendanceRecord = {
-          id: existingIdx >= 0 ? updated[existingIdx].id : `att-${sessionId}-${player.id}`,
-          sessionId,
-          sessionDate: session.date,
-          playerId: player.id,
-          playerName: player.name,
-          jerseyNumber: player.jerseyNumber,
-          status,
-          lateMinutes: status === 'late' ? 15 : 0,
-          staffNotes: existingIdx >= 0 ? updated[existingIdx].staffNotes : '',
-          recordedBy: 'Staff Tecnico',
-          updatedAt: new Date().toISOString()
-        };
-
-        if (existingIdx >= 0) {
-          updated[existingIdx] = record;
-        } else {
-          updated.push(record);
-        }
-        newRecords.push(record);
-      });
-      return updated;
-    });
-
-    // Cloud persist all records
-    try {
-      const { error } = await supabase.from('attendances').upsert(newRecords);
-      if (error) throw error;
-    } catch (e) {
-      console.warn('Bulk attendance cloud error:', e);
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
   const addOrUpdateSession = async (session: TrainingSession) => {
     setIsSyncing(true);
     setSessions(prev => {
@@ -364,7 +313,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           playerId: p.id,
           playerName: p.name,
           jerseyNumber: p.jerseyNumber,
-          status: p.status === 'injured' ? 'injured_diff' : 'present',
+          status: p.status === 'injured' ? 'injured_diff' : 'not_declared',
           lateMinutes: 0,
           staffNotes: p.status === 'injured' ? 'Infortunata in recupero' : '',
           recordedBy: 'Staff Tecnico',
@@ -871,7 +820,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       attendanceWindowOpen,
       setAttendanceWindowOpen,
       updateAttendance,
-      bulkMarkSessionAttendance,
       addOrUpdateSession,
       deleteSession,
       submitRpeFeedback,

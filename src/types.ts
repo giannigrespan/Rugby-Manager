@@ -71,12 +71,13 @@ export interface TrainingSession {
   createdAt: string;
 }
 
-export type AttendanceStatus = 
-  | 'present' 
-  | 'absent_justified' 
-  | 'absent_unjustified' 
-  | 'injured_diff' 
-  | 'late';
+export type AttendanceStatus =
+  | 'present'
+  | 'absent_justified'
+  | 'absent_unjustified'
+  | 'injured_diff'
+  | 'late'
+  | 'not_declared';
 
 export interface AttendanceRecord {
   id: string;
