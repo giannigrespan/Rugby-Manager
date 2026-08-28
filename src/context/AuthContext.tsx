@@ -278,13 +278,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const userEmail = user.email.toLowerCase();
 
-      // 1. Check if it's Gianni Grespan (Root Admin & Head Coach)
+      // 1. Check if it's Gianni Grespan (Root Admin & Direttore Tecnico)
       if (userEmail === 'gianni.grespan@gmail.com') {
         const adminProf: UserProfile = {
           id: user.id,
           email: user.email,
-          name: (user.user_metadata?.full_name as string) || 'Gianni Grespan (Admin & Head Coach)',
-          role: 'head_coach',
+          name: (user.user_metadata?.full_name as string) || 'Gianni Grespan (Admin & Direttore Tecnico)',
+          role: 'direttore_tecnico',
           isAdmin: true,
           position: 'Staff Tecnico',
           department: 'staff',
@@ -451,11 +451,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let targetMember: UserProfile | undefined;
     setStaffUsersState(prev => prev.map(s => {
       if (s.id === staffId) {
-        const updated = {
-          ...s,
-          isAdmin,
-          role: isAdmin && s.role === 'player' ? 'direttore_tecnico' as UserRole : s.role
-        };
+        const updated = { ...s, isAdmin };
         targetMember = updated;
         return updated;
       }
@@ -463,11 +459,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }));
 
     if (currentUser?.id === staffId) {
-      const updatedUser = {
-        ...currentUser,
-        isAdmin,
-        role: isAdmin && currentUser.role === 'player' ? 'direttore_tecnico' as UserRole : currentUser.role
-      };
+      const updatedUser = { ...currentUser, isAdmin };
       setCurrentUser(updatedUser);
       localStorage.setItem('rugby_current_user', JSON.stringify(updatedUser));
     }
@@ -486,11 +478,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let targetMember: UserProfile | undefined;
     setStaffUsersState(prev => prev.map(s => {
       if (s.id === staffId) {
-        const updated = {
-          ...s,
-          role,
-          isAdmin: role === 'direttore_tecnico' ? true : s.isAdmin
-        };
+        const updated = { ...s, role };
         targetMember = updated;
         return updated;
       }
@@ -498,11 +486,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }));
 
     if (currentUser?.id === staffId) {
-      const updatedUser = {
-        ...currentUser,
-        role,
-        isAdmin: role === 'direttore_tecnico' ? true : currentUser.isAdmin
-      };
+      const updatedUser = { ...currentUser, role };
       setCurrentUser(updatedUser);
       localStorage.setItem('rugby_current_user', JSON.stringify(updatedUser));
     }
@@ -626,8 +610,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ? {
             id: data.user.id,
             email,
-            name: name || 'Gianni Grespan (Admin & Head Coach)',
-            role: 'head_coach',
+            name: name || 'Gianni Grespan (Admin & Direttore Tecnico)',
+            role: 'direttore_tecnico',
             isAdmin: true,
             position: 'Staff Tecnico',
             department: 'staff',

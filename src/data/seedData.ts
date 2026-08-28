@@ -4,8 +4,8 @@ export const INITIAL_STAFF: UserProfile[] = [
   {
     id: 'staff-gianni-grespan',
     email: 'gianni.grespan@gmail.com',
-    name: 'Gianni Grespan (Admin & Head Coach)',
-    role: 'head_coach',
+    name: 'Gianni Grespan (Admin & Direttore Tecnico)',
+    role: 'direttore_tecnico',
     isAdmin: true,
     position: 'Staff Tecnico',
     department: 'staff',
