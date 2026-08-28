@@ -44,12 +44,7 @@ export const KickingSpecialistsView: React.FC = () => {
   const isPlayer = currentUser?.role === 'player';
 
   const [showModal, setShowModal] = useState(false);
-  const kickerCandidates = players.filter(p =>
-    p.position.includes('Apertura') ||
-    p.position.includes('Mischia') ||
-    p.position.includes('Centro') ||
-    p.position.includes('Estremo')
-  );
+  const kickerCandidates = players.filter(p => p.department === 'trequarti');
 
   const selectablePlayers = isPlayer ? players.filter(p => p.id === currentUser?.id) : kickerCandidates;
   const defaultPlayerId = isPlayer ? (currentUser?.id || '') : (kickerCandidates[0]?.id || 'p-26');
