@@ -9,9 +9,8 @@ import {
   Shield, 
   UserCheck, 
   LogIn, 
-  LogOut, 
-  RefreshCw, 
-  Zap, 
+  LogOut,
+  Zap,
   Activity, 
   HeartPulse, 
   AlertTriangle, 
@@ -67,7 +66,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isCollapsed,
   setIsCollapsed
 }) => {
-  const { players, injuries, physioNotes, tasks, notifications, cloudSyncStatus, clearAllData } = useData();
+  const { players, injuries, physioNotes, tasks, notifications, cloudSyncStatus } = useData();
   const { currentUser, staffUsers, logout, isSectionVisibleForUser } = useAuth();
   const [showRoleMenu, setShowRoleMenu] = useState(false);
 
@@ -294,22 +293,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               )}
             </button>
           </div>
-
-          {/* Clear Data Button (for Admin) */}
-          <button
-            onClick={() => {
-              if (window.confirm("Sei sicuro di voler svuotare tutti i dati (rosa, sessioni, presenze, infortuni) per iniziare da zero?")) {
-                clearAllData();
-              }
-            }}
-            className={`w-full flex items-center gap-2 px-3 py-2 bg-[#1D1D21] hover:bg-red-950/40 text-gray-400 hover:text-red-400 rounded-lg border border-[#2A2A2E] hover:border-red-500/40 text-xs font-medium transition-colors ${
-              isCollapsed && !isMobileOpen ? 'justify-center' : ''
-            }`}
-            title="Svuota tutti i dati per iniziare da zero"
-          >
-            <RefreshCw className="w-3.5 h-3.5 flex-shrink-0" />
-            {(!isCollapsed || isMobileOpen) && <span>Svuota Dati (Reset)</span>}
-          </button>
         </div>
 
         {/* Navigation Tabs List */}
