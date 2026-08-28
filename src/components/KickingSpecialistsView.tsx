@@ -16,7 +16,8 @@ import {
   Percent,
   Download,
   Trash2,
-  CalendarDays
+  CalendarDays,
+  X
 } from 'lucide-react';
 
 const WEEKLY_GOAL_MIN = 45;
@@ -44,6 +45,7 @@ export const KickingSpecialistsView: React.FC = () => {
   const isPlayer = currentUser?.role === 'player';
 
   const [showModal, setShowModal] = useState(false);
+  const [expandedPlayerId, setExpandedPlayerId] = useState<string | null>(null);
   const kickerCandidates = players.filter(p => p.department === 'trequarti');
 
   const selectablePlayers = isPlayer ? players.filter(p => p.id === currentUser?.id) : kickerCandidates;
@@ -203,8 +205,14 @@ export const KickingSpecialistsView: React.FC = () => {
             return (
               <div key={p.id} className="bg-[#1D1D21] p-3 rounded-lg border border-[#2A2A2E]">
                 <div className="flex items-center justify-between text-xs mb-1.5">
-                  <span className="font-semibold text-[#E0E0E1] truncate">{p.name}</span>
-                  <span className={`font-bold ${reached ? 'text-emerald-400' : 'text-[#D4AF37]'}`}>
+                  <button
+                    type="button"
+                    onClick={() => setExpandedPlayerId(p.id)}
+                    className="font-semibold text-[#E0E0E1] truncate hover:text-[#D4AF37] hover:underline text-left"
+                  >
+                    {p.name}
+                  </button>
+                  <span className={`font-bold shrink-0 ${reached ? 'text-emerald-400' : 'text-[#D4AF37]'}`}>
                     {minutesThisWeek}/{WEEKLY_GOAL_MIN} min
                   </span>
                 </div>
@@ -220,120 +228,142 @@ export const KickingSpecialistsView: React.FC = () => {
         </div>
       </div>
 
-      {/* Specialist Kicker Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {kickingSessions.map(ks => {
-          const overallPct = Math.round((ks.successfulKicks / ks.totalKicks) * 100) || 0;
-          const piazzatiPct = Math.round((ks.stats.piazzati.success / ks.stats.piazzati.total) * 100) || 0;
+      {/* Detail: sessions for the athlete clicked above */}
+      {expandedPlayerId && (() => {
+        const expandedPlayer = players.find(p => p.id === expandedPlayerId);
+        const playerSessions = kickingSessions.filter(ks => ks.playerId === expandedPlayerId);
 
-          return (
-            <div key={ks.id} className="bg-[#121214] border border-[#2A2A2E] hover:border-[#D4AF37]/50 rounded-xl p-5 shadow-xl space-y-4 transition-all">
-              <div className="flex items-start justify-between border-b border-[#2A2A2E] pb-3">
-                <div>
-                  <h3 className="text-base font-bold text-[#E0E0E1] font-serif">{ks.playerName}</h3>
-                  <p className="text-xs text-gray-400 flex items-center gap-2 mt-0.5">
-                    <span>{ks.date}</span>
-                    <span>•</span>
-                    <span className="text-[#D4AF37] font-semibold">{ks.durationMin} minuti</span>
-                  </p>
-                </div>
-                <div className="text-right">
-                  <span className="text-2xl font-black text-[#D4AF37]">{overallPct}%</span>
-                  <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Precisione Totale</p>
-                </div>
-              </div>
-
-              {/* Stats Breakdown Pills */}
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="bg-[#1D1D21] p-2.5 rounded-lg border border-[#2A2A2E]">
-                  <span className="text-gray-400 block text-[11px] uppercase tracking-wider">Piazzati ai Pali:</span>
-                  <div className="flex items-baseline justify-between mt-1">
-                    <span className="font-bold text-[#E0E0E1]">{ks.stats.piazzati.success}/{ks.stats.piazzati.total}</span>
-                    <span className="text-emerald-400 font-bold">{piazzatiPct}%</span>
-                  </div>
-                </div>
-
-                <div className="bg-[#1D1D21] p-2.5 rounded-lg border border-[#2A2A2E]">
-                  <span className="text-gray-400 block text-[11px] uppercase tracking-wider">Drop Goal:</span>
-                  <div className="flex items-baseline justify-between mt-1">
-                    <span className="font-bold text-[#E0E0E1]">{ks.stats.drop.success}/{ks.stats.drop.total}</span>
-                    <span className="text-[#D4AF37] font-bold">
-                      {Math.round((ks.stats.drop.success / (ks.stats.drop.total || 1)) * 100)}%
-                    </span>
-                  </div>
-                </div>
-
-                <div className="bg-[#1D1D21] p-2.5 rounded-lg border border-[#2A2A2E]">
-                  <span className="text-gray-400 block text-[11px] uppercase tracking-wider">Liberazione 50-22:</span>
-                  <div className="flex items-baseline justify-between mt-1">
-                    <span className="font-bold text-[#E0E0E1]">{ks.stats.spostamento.success}/{ks.stats.spostamento.total}</span>
-                    <span className="text-blue-400 font-bold">
-                      {Math.round((ks.stats.spostamento.success / (ks.stats.spostamento.total || 1)) * 100)}%
-                    </span>
-                  </div>
-                </div>
-
-                <div className="bg-[#1D1D21] p-2.5 rounded-lg border border-[#2A2A2E]">
-                  <span className="text-gray-400 block text-[11px] uppercase tracking-wider">Box Kick (9):</span>
-                  <div className="flex items-baseline justify-between mt-1">
-                    <span className="font-bold text-[#E0E0E1]">{ks.stats.upAndUnder.success}/{ks.stats.upAndUnder.total}</span>
-                    <span className="text-purple-400 font-bold">
-                      {Math.round((ks.stats.upAndUnder.success / (ks.stats.upAndUnder.total || 1)) * 100)}%
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Pitch Zones Breakdown */}
-              {ks.fieldZoneSuccess && (
-                <div className="bg-[#1D1D21] p-3 rounded-lg border border-[#2A2A2E] text-xs space-y-1.5">
-                  <span className="font-bold text-gray-300 block text-[11px] uppercase tracking-wider">Precisione per Zona Campo:</span>
-                  <div className="grid grid-cols-3 gap-1 text-center text-[11px]">
-                    <div className="bg-[#121214] p-1.5 rounded-lg border border-[#2A2A2E]">
-                      <p className="text-gray-400">Sinistra</p>
-                      <p className="font-bold text-emerald-400">{ks.fieldZoneSuccess.sinistra}%</p>
-                    </div>
-                    <div className="bg-[#121214] p-1.5 rounded-lg border border-[#2A2A2E]">
-                      <p className="text-gray-400">Centro</p>
-                      <p className="font-bold text-[#D4AF37]">{ks.fieldZoneSuccess.centro}%</p>
-                    </div>
-                    <div className="bg-[#121214] p-1.5 rounded-lg border border-[#2A2A2E]">
-                      <p className="text-gray-400">Destra</p>
-                      <p className="font-bold text-emerald-400">{ks.fieldZoneSuccess.destra}%</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Generic Skills Breakdown */}
-              {ks.extraSkills && ks.extraSkills.length > 0 && (
-                <div className="bg-[#1D1D21] p-3 rounded-lg border border-[#2A2A2E] text-xs space-y-1.5">
-                  <span className="font-bold text-gray-300 block text-[11px] uppercase tracking-wider">Skills Generici:</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {ks.extraSkills.map((skill, i) => (
-                      <span key={i} className="px-2 py-1 bg-[#121214] border border-[#2A2A2E] rounded-lg text-[11px] text-gray-300">
-                        {skill.label} <span className="text-[#D4AF37] font-bold">{skill.minutes}m</span>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {ks.notes && (
-                <p className="text-xs text-gray-400 italic">"{ks.notes}"</p>
-              )}
+        return (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between bg-[#121214] border border-[#2A2A2E] rounded-xl px-5 py-3 shadow-xl">
+              <h3 className="text-sm font-bold text-[#E0E0E1] font-serif">
+                Dettaglio Sessioni: <span className="text-[#D4AF37]">{expandedPlayer?.name}</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setExpandedPlayerId(null)}
+                className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-[#1D1D21]"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
-          );
-        })}
 
-        {kickingSessions.length === 0 && (
-          <div className="col-span-full py-12 text-center bg-[#121214] border border-[#2A2A2E] rounded-xl">
-            <Target className="w-10 h-10 text-gray-600 mx-auto mb-2" />
-            <p className="text-[#E0E0E1] font-bold text-base font-serif">Nessuna Sessione Calci Registrata</p>
-            <p className="text-xs text-gray-400">Registra i report balistici di piazzati, drop e calci di liberazione per le mediatrici e calciatrici.</p>
+            {playerSessions.length === 0 && (
+              <div className="py-10 text-center bg-[#121214] border border-[#2A2A2E] rounded-xl">
+                <Target className="w-8 h-8 text-gray-600 mx-auto mb-2" />
+                <p className="text-[#E0E0E1] font-bold text-sm font-serif">Nessuna Sessione Calci Registrata</p>
+                <p className="text-xs text-gray-400">Questa atleta non ha ancora registrato sessioni di calci.</p>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {playerSessions.map(ks => {
+                const overallPct = Math.round((ks.successfulKicks / ks.totalKicks) * 100) || 0;
+                const piazzatiPct = Math.round((ks.stats.piazzati.success / ks.stats.piazzati.total) * 100) || 0;
+
+                return (
+                  <div key={ks.id} className="bg-[#121214] border border-[#2A2A2E] hover:border-[#D4AF37]/50 rounded-xl p-5 shadow-xl space-y-4 transition-all">
+                    <div className="flex items-start justify-between border-b border-[#2A2A2E] pb-3">
+                      <div>
+                        <h3 className="text-base font-bold text-[#E0E0E1] font-serif">{ks.playerName}</h3>
+                        <p className="text-xs text-gray-400 flex items-center gap-2 mt-0.5">
+                          <span>{ks.date}</span>
+                          <span>•</span>
+                          <span className="text-[#D4AF37] font-semibold">{ks.durationMin} minuti</span>
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-2xl font-black text-[#D4AF37]">{overallPct}%</span>
+                        <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Precisione Totale</p>
+                      </div>
+                    </div>
+
+                    {/* Stats Breakdown Pills */}
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="bg-[#1D1D21] p-2.5 rounded-lg border border-[#2A2A2E]">
+                        <span className="text-gray-400 block text-[11px] uppercase tracking-wider">Piazzati ai Pali:</span>
+                        <div className="flex items-baseline justify-between mt-1">
+                          <span className="font-bold text-[#E0E0E1]">{ks.stats.piazzati.success}/{ks.stats.piazzati.total}</span>
+                          <span className="text-emerald-400 font-bold">{piazzatiPct}%</span>
+                        </div>
+                      </div>
+
+                      <div className="bg-[#1D1D21] p-2.5 rounded-lg border border-[#2A2A2E]">
+                        <span className="text-gray-400 block text-[11px] uppercase tracking-wider">Drop Goal:</span>
+                        <div className="flex items-baseline justify-between mt-1">
+                          <span className="font-bold text-[#E0E0E1]">{ks.stats.drop.success}/{ks.stats.drop.total}</span>
+                          <span className="text-[#D4AF37] font-bold">
+                            {Math.round((ks.stats.drop.success / (ks.stats.drop.total || 1)) * 100)}%
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="bg-[#1D1D21] p-2.5 rounded-lg border border-[#2A2A2E]">
+                        <span className="text-gray-400 block text-[11px] uppercase tracking-wider">Liberazione 50-22:</span>
+                        <div className="flex items-baseline justify-between mt-1">
+                          <span className="font-bold text-[#E0E0E1]">{ks.stats.spostamento.success}/{ks.stats.spostamento.total}</span>
+                          <span className="text-blue-400 font-bold">
+                            {Math.round((ks.stats.spostamento.success / (ks.stats.spostamento.total || 1)) * 100)}%
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="bg-[#1D1D21] p-2.5 rounded-lg border border-[#2A2A2E]">
+                        <span className="text-gray-400 block text-[11px] uppercase tracking-wider">Box Kick (9):</span>
+                        <div className="flex items-baseline justify-between mt-1">
+                          <span className="font-bold text-[#E0E0E1]">{ks.stats.upAndUnder.success}/{ks.stats.upAndUnder.total}</span>
+                          <span className="text-purple-400 font-bold">
+                            {Math.round((ks.stats.upAndUnder.success / (ks.stats.upAndUnder.total || 1)) * 100)}%
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Pitch Zones Breakdown */}
+                    {ks.fieldZoneSuccess && (
+                      <div className="bg-[#1D1D21] p-3 rounded-lg border border-[#2A2A2E] text-xs space-y-1.5">
+                        <span className="font-bold text-gray-300 block text-[11px] uppercase tracking-wider">Precisione per Zona Campo:</span>
+                        <div className="grid grid-cols-3 gap-1 text-center text-[11px]">
+                          <div className="bg-[#121214] p-1.5 rounded-lg border border-[#2A2A2E]">
+                            <p className="text-gray-400">Sinistra</p>
+                            <p className="font-bold text-emerald-400">{ks.fieldZoneSuccess.sinistra}%</p>
+                          </div>
+                          <div className="bg-[#121214] p-1.5 rounded-lg border border-[#2A2A2E]">
+                            <p className="text-gray-400">Centro</p>
+                            <p className="font-bold text-[#D4AF37]">{ks.fieldZoneSuccess.centro}%</p>
+                          </div>
+                          <div className="bg-[#121214] p-1.5 rounded-lg border border-[#2A2A2E]">
+                            <p className="text-gray-400">Destra</p>
+                            <p className="font-bold text-emerald-400">{ks.fieldZoneSuccess.destra}%</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Generic Skills Breakdown */}
+                    {ks.extraSkills && ks.extraSkills.length > 0 && (
+                      <div className="bg-[#1D1D21] p-3 rounded-lg border border-[#2A2A2E] text-xs space-y-1.5">
+                        <span className="font-bold text-gray-300 block text-[11px] uppercase tracking-wider">Skills Generici:</span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {ks.extraSkills.map((skill, i) => (
+                            <span key={i} className="px-2 py-1 bg-[#121214] border border-[#2A2A2E] rounded-lg text-[11px] text-gray-300">
+                              {skill.label} <span className="text-[#D4AF37] font-bold">{skill.minutes}m</span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {ks.notes && (
+                      <p className="text-xs text-gray-400 italic">"{ks.notes}"</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        )}
-      </div>
+        );
+      })()}
 
       {/* Modal Add Kicking */}
       {showModal && (
