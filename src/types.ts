@@ -173,6 +173,11 @@ export interface IndividualTask {
   }>;
 }
 
+export interface KickingSkillEntry {
+  name: string;
+  minutes: number;
+}
+
 export interface KickingSession {
   id: string;
   playerId: string;
@@ -187,6 +192,7 @@ export interface KickingSession {
     spostamento: { total: number; success: number };
     upAndUnder: { total: number; success: number };
   };
+  genericSkills?: KickingSkillEntry[]; // skill al piede aggiuntivi, valorizzati a minuti
   fieldZoneSuccess?: {
     centro: number;
     destra: number;

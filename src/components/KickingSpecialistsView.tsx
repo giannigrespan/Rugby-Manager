@@ -1,35 +1,42 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
-import { KickingSession } from '../types';
+import { KickingSkillEntry } from '../types';
 import { exportToCsv } from '../utils/csvExport';
 import {
   Target,
   Plus,
-  Award,
   Crosshair,
-  Clock,
-  TrendingUp,
-  Sparkles,
-  Flame,
-  CheckCircle,
-  Percent,
-  Download
+  Download,
+  Trash2
 } from 'lucide-react';
+
+const WEEKLY_GOAL_MIN = 45;
+
+// Lunedì della settimana ISO a cui appartiene una data, per aggregare i minuti settimanali
+const getWeekKey = (dateStr: string): string => {
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  const day = (d.getUTCDay() + 6) % 7; // Lunedì = 0
+  const monday = new Date(d);
+  monday.setUTCDate(d.getUTCDate() - day);
+  return monday.toISOString().slice(0, 10);
+};
 
 export const KickingSpecialistsView: React.FC = () => {
   const { players, kickingSessions, addKickingSession, isSyncing } = useData();
   const { currentUser } = useAuth();
 
   const [showModal, setShowModal] = useState(false);
-  const kickerCandidates = players.filter(p => 
-    p.position.includes('Apertura') || 
-    p.position.includes('Mischia') || 
-    p.position.includes('Centro') || 
+  const kickerCandidates = players.filter(p =>
+    p.position.includes('Apertura') ||
+    p.position.includes('Mischia') ||
+    p.position.includes('Centro') ||
     p.position.includes('Estremo')
   );
 
   const [selectedPlayerId, setSelectedPlayerId] = useState(kickerCandidates[0]?.id || 'p-26');
+  const [workDate, setWorkDate] = useState(new Date().toISOString().slice(0, 10));
   const [durationMin, setDurationMin] = useState(45);
   const [piazzatiTotal, setPiazzatiTotal] = useState(25);
   const [piazzatiSuccess, setPiazzatiSuccess] = useState(22);
@@ -42,7 +49,32 @@ export const KickingSpecialistsView: React.FC = () => {
   const [zoneCentro, setZoneCentro] = useState(90);
   const [zoneDestra, setZoneDestra] = useState(85);
   const [zoneSinistra, setZoneSinistra] = useState(80);
+  const [genericSkills, setGenericSkills] = useState<KickingSkillEntry[]>([]);
   const [notes, setNotes] = useState('');
+
+  const addGenericSkill = () => {
+    setGenericSkills(prev => [...prev, { name: '', minutes: 10 }]);
+  };
+
+  const updateGenericSkill = (index: number, field: keyof KickingSkillEntry, value: string) => {
+    setGenericSkills(prev => prev.map((s, i) => i === index ? { ...s, [field]: field === 'minutes' ? (parseInt(value) || 0) : value } : s));
+  };
+
+  const removeGenericSkill = (index: number) => {
+    setGenericSkills(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Totale minuti settimanali per atleta (sessione fissa + skill generici), per il traguardo dei 45 min/settimana
+  const weeklyMinutesByPlayer = useMemo(() => {
+    const currentWeek = getWeekKey(new Date().toISOString().slice(0, 10));
+    const totals = new Map<string, number>();
+    kickingSessions.forEach(ks => {
+      if (getWeekKey(ks.date) !== currentWeek) return;
+      const skillMinutes = (ks.genericSkills || []).reduce((acc, s) => acc + (s.minutes || 0), 0);
+      totals.set(ks.playerId, (totals.get(ks.playerId) || 0) + ks.durationMin + skillMinutes);
+    });
+    return totals;
+  }, [kickingSessions]);
 
   const handleCreateKicking = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,7 +87,7 @@ export const KickingSpecialistsView: React.FC = () => {
     await addKickingSession({
       playerId: kicker.id,
       playerName: kicker.name,
-      date: new Date().toISOString().slice(0, 10),
+      date: workDate,
       durationMin,
       totalKicks,
       successfulKicks,
@@ -65,6 +97,7 @@ export const KickingSpecialistsView: React.FC = () => {
         spostamento: { total: spostamentoTotal, success: spostamentoSuccess },
         upAndUnder: { total: upAndUnderTotal, success: upAndUnderSuccess }
       },
+      genericSkills: genericSkills.filter(s => s.name.trim()),
       fieldZoneSuccess: {
         centro: zoneCentro,
         destra: zoneDestra,
@@ -75,12 +108,14 @@ export const KickingSpecialistsView: React.FC = () => {
 
     setShowModal(false);
     setNotes('');
+    setGenericSkills([]);
+    setWorkDate(new Date().toISOString().slice(0, 10));
   };
 
   const handleExportCsv = () => {
     exportToCsv(
       `calci_specialisti_${new Date().toISOString().slice(0, 10)}.csv`,
-      ['Data', 'Giocatrice', 'Durata (min)', 'Calci Totali', 'Calci Riusciti', 'Precisione %', 'Piazzati Riusciti/Tot', 'Drop Riusciti/Tot', 'Spostamento Riusciti/Tot', 'Up&Under Riusciti/Tot', 'Note'],
+      ['Data', 'Giocatrice', 'Durata (min)', 'Calci Totali', 'Calci Riusciti', 'Precisione %', 'Piazzati Riusciti/Tot', 'Drop Riusciti/Tot', 'Spostamento Riusciti/Tot', 'Up&Under Riusciti/Tot', 'Skill Generici (min)', 'Note'],
       kickingSessions.map(ks => [
         ks.date,
         `"${ks.playerName}"`,
@@ -92,6 +127,7 @@ export const KickingSpecialistsView: React.FC = () => {
         `${ks.stats.drop.success}/${ks.stats.drop.total}`,
         `${ks.stats.spostamento.success}/${ks.stats.spostamento.total}`,
         `${ks.stats.upAndUnder.success}/${ks.stats.upAndUnder.total}`,
+        `"${(ks.genericSkills || []).map(s => `${s.name} (${s.minutes}m)`).join('; ').replace(/"/g, "'")}"`,
         `"${(ks.notes || '').replace(/"/g, "'")}"`
       ])
     );
@@ -99,7 +135,7 @@ export const KickingSpecialistsView: React.FC = () => {
 
   return (
     <div id="kicking-specialists-container" className="space-y-6 animate-in fade-in duration-300">
-      
+
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 bg-[#121214] border border-[#2A2A2E] rounded-xl p-6 shadow-2xl">
         <div className="flex items-center gap-3">
@@ -108,13 +144,13 @@ export const KickingSpecialistsView: React.FC = () => {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-[#E0E0E1] font-bold text-lg font-serif">Calci Trequarti & Specialisti al Piede (45 min)</h2>
+              <h2 className="text-[#E0E0E1] font-bold text-lg font-serif">Calci Trequarti & Specialisti al Piede</h2>
               <span className="px-2.5 py-0.5 bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40 text-xs font-bold rounded-full">
-                Precisione & Percentuali Balistiche
+                Obiettivo: {WEEKLY_GOAL_MIN} min/settimana
               </span>
             </div>
             <p className="text-xs text-gray-400">
-              Piazzati da fermo, trasformazioni ai pali, drop goal, box kick del 9 e calci di liberazione 50-22
+              Piazzati da fermo, trasformazioni ai pali, drop goal, box kick del 9, calci di liberazione 50-22 e skill libere al piede
             </p>
           </div>
         </div>
@@ -134,10 +170,38 @@ export const KickingSpecialistsView: React.FC = () => {
             className="px-4 py-2.5 bg-[#D4AF37] hover:bg-[#C09F30] text-black text-xs font-bold rounded-lg shadow-md flex items-center gap-2 transition-all active:scale-95"
           >
             <Plus className="w-4 h-4" />
-            <span>Registra Sessione Calci (45m)</span>
+            <span>Registra Sessione Calci</span>
           </button>
         </div>
       </div>
+
+      {/* Weekly minutes goal tracker per kicker */}
+      {kickerCandidates.length > 0 && (
+        <div className="bg-[#121214] border border-[#2A2A2E] rounded-xl p-5 shadow-xl">
+          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Minuti Settimanali al Piede (obiettivo {WEEKLY_GOAL_MIN} min)</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {kickerCandidates.map(p => {
+              const minutes = weeklyMinutesByPlayer.get(p.id) || 0;
+              const pct = Math.min(100, Math.round((minutes / WEEKLY_GOAL_MIN) * 100));
+              const reached = minutes >= WEEKLY_GOAL_MIN;
+              return (
+                <div key={p.id} className="bg-[#1D1D21] p-3 rounded-lg border border-[#2A2A2E] text-xs space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-[#E0E0E1] truncate">{p.name}</span>
+                    <span className={`font-bold ${reached ? 'text-emerald-400' : 'text-[#D4AF37]'}`}>{minutes}/{WEEKLY_GOAL_MIN} min</span>
+                  </div>
+                  <div className="w-full bg-[#0A0A0B] h-1.5 rounded-full overflow-hidden border border-[#2A2A2E]">
+                    <div
+                      className={`h-full rounded-full transition-all ${reached ? 'bg-emerald-500' : 'bg-[#D4AF37]'}`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Specialist Kicker Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -203,6 +267,20 @@ export const KickingSpecialistsView: React.FC = () => {
                 </div>
               </div>
 
+              {/* Generic skills worked on, valued in minutes */}
+              {ks.genericSkills && ks.genericSkills.length > 0 && (
+                <div className="bg-[#1D1D21] p-3 rounded-lg border border-[#2A2A2E] text-xs space-y-1.5">
+                  <span className="font-bold text-gray-300 block text-[11px] uppercase tracking-wider">Skill Generici Lavorati:</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {ks.genericSkills.map((s, i) => (
+                      <span key={i} className="px-2 py-1 bg-[#121214] border border-[#2A2A2E] rounded-lg text-[11px] text-gray-300">
+                        {s.name} <span className="text-[#D4AF37] font-bold">{s.minutes}m</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Pitch Zones Breakdown */}
               {ks.fieldZoneSuccess && (
                 <div className="bg-[#1D1D21] p-3 rounded-lg border border-[#2A2A2E] text-xs space-y-1.5">
@@ -244,30 +322,54 @@ export const KickingSpecialistsView: React.FC = () => {
       {showModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
           <div className="bg-[#121214] border border-[#2A2A2E] rounded-xl w-full max-w-lg p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            
+
             <div className="flex items-center justify-between border-b border-[#2A2A2E] pb-3">
               <h3 className="text-[#E0E0E1] font-bold text-base font-serif flex items-center gap-2">
                 <Crosshair className="w-5 h-5 text-[#D4AF37]" />
-                Registra Sessione Calci (45 min)
+                Registra Sessione Calci
               </h3>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-white p-1">✕</button>
             </div>
 
             <form onSubmit={handleCreateKicking} className="space-y-4 text-xs">
-              
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[11px]">Specialista Calciatrice:</label>
+                  <select
+                    value={selectedPlayerId}
+                    onChange={(e) => setSelectedPlayerId(e.target.value)}
+                    className="w-full px-3 py-2 bg-[#1D1D21] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] focus:outline-none focus:border-[#D4AF37]"
+                  >
+                    {kickerCandidates.map(p => (
+                      <option key={p.id} value={p.id}>
+                        #{p.jerseyNumber || '-'} {p.name} ({p.position})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[11px]">Giorno di Lavoro:</label>
+                  <input
+                    type="date"
+                    required
+                    value={workDate}
+                    onChange={(e) => setWorkDate(e.target.value)}
+                    className="w-full px-3 py-2 bg-[#1D1D21] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] focus:outline-none focus:border-[#D4AF37]"
+                  />
+                </div>
+              </div>
+
               <div>
-                <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[11px]">Specialista Calciatrice:</label>
-                <select
-                  value={selectedPlayerId}
-                  onChange={(e) => setSelectedPlayerId(e.target.value)}
-                  className="w-full px-3 py-2 bg-[#1D1D21] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] focus:outline-none focus:border-[#D4AF37]"
-                >
-                  {kickerCandidates.map(p => (
-                    <option key={p.id} value={p.id}>
-                      #{p.jerseyNumber || '-'} {p.name} ({p.position})
-                    </option>
-                  ))}
-                </select>
+                <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[11px]">Tempo Dedicato Oggi (minuti):</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={durationMin}
+                  onChange={(e) => setDurationMin(parseInt(e.target.value) || 0)}
+                  className="w-full px-3 py-2 bg-[#1D1D21] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] font-bold focus:outline-none focus:border-[#D4AF37]"
+                />
               </div>
 
               {/* Counters */}
@@ -357,8 +459,48 @@ export const KickingSpecialistsView: React.FC = () => {
                 </div>
               </div>
 
+              {/* Generic skills, added freely and valued in minutes */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block font-semibold text-gray-300 uppercase tracking-wider text-[11px]">Altri Skill al Piede (minuti):</label>
+                  <button
+                    type="button"
+                    onClick={addGenericSkill}
+                    className="text-[10px] text-[#D4AF37] hover:text-[#C09F30] font-bold underline"
+                  >
+                    + Aggiungi Skill
+                  </button>
+                </div>
+                {genericSkills.map((skill, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      placeholder="es. Calci di rimbalzo, chip kick..."
+                      value={skill.name}
+                      onChange={(e) => updateGenericSkill(i, 'name', e.target.value)}
+                      className="flex-1 px-3 py-2 bg-[#1D1D21] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] placeholder-gray-500 focus:outline-none focus:border-[#D4AF37]"
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      value={skill.minutes}
+                      onChange={(e) => updateGenericSkill(i, 'minutes', e.target.value)}
+                      className="w-20 px-2 py-2 bg-[#1D1D21] border border-[#2A2A2E] rounded-lg text-[#D4AF37] font-bold text-center focus:outline-none focus:border-[#D4AF37]"
+                    />
+                    <span className="text-gray-500 text-[10px]">min</span>
+                    <button
+                      type="button"
+                      onClick={() => removeGenericSkill(i)}
+                      className="p-1.5 text-gray-500 hover:text-red-400 rounded-lg hover:bg-[#1D1D21]"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
               <div>
-                <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[11px]">Note Staff / Condizioni Vento:</label>
+                <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[11px]">Note Atleta (sensazioni, condizioni vento, ecc.):</label>
                 <input
                   type="text"
                   placeholder="es. Vento trasversale da sinistra, ottimo impatto palla..."
