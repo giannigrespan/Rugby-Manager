@@ -54,14 +54,14 @@ export const KickingSpecialistsView: React.FC = () => {
   const [selectedPlayerId, setSelectedPlayerId] = useState(defaultPlayerId);
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [durationMin, setDurationMin] = useState(45);
-  const [piazzatiTotal, setPiazzatiTotal] = useState(25);
-  const [piazzatiSuccess, setPiazzatiSuccess] = useState(22);
-  const [dropTotal, setDropTotal] = useState(5);
-  const [dropSuccess, setDropSuccess] = useState(4);
-  const [spostamentoTotal, setSpostamentoTotal] = useState(6);
-  const [spostamentoSuccess, setSpostamentoSuccess] = useState(5);
-  const [upAndUnderTotal, setUpAndUnderTotal] = useState(4);
-  const [upAndUnderSuccess, setUpAndUnderSuccess] = useState(3);
+  const [piazzatiTotal, setPiazzatiTotal] = useState(0);
+  const [piazzatiSuccess, setPiazzatiSuccess] = useState(0);
+  const [dropTotal, setDropTotal] = useState(0);
+  const [dropSuccess, setDropSuccess] = useState(0);
+  const [spostamentoTotal, setSpostamentoTotal] = useState(0);
+  const [spostamentoSuccess, setSpostamentoSuccess] = useState(0);
+  const [upAndUnderTotal, setUpAndUnderTotal] = useState(0);
+  const [upAndUnderSuccess, setUpAndUnderSuccess] = useState(0);
   const [zoneCentro, setZoneCentro] = useState(90);
   const [zoneDestra, setZoneDestra] = useState(85);
   const [zoneSinistra, setZoneSinistra] = useState(80);
@@ -75,6 +75,23 @@ export const KickingSpecialistsView: React.FC = () => {
       : s));
   };
   const removeExtraSkillRow = (idx: number) => setExtraSkills(prev => prev.filter((_, i) => i !== idx));
+
+  // Azzera i contatori piazzati/drop/liberazione/box kick per una nuova sessione da registrare.
+  const resetKickingCounters = () => {
+    setPiazzatiTotal(0);
+    setPiazzatiSuccess(0);
+    setDropTotal(0);
+    setDropSuccess(0);
+    setSpostamentoTotal(0);
+    setSpostamentoSuccess(0);
+    setUpAndUnderTotal(0);
+    setUpAndUnderSuccess(0);
+  };
+
+  const openNewKickingModal = () => {
+    resetKickingCounters();
+    setShowModal(true);
+  };
 
   // Minuti già registrati per l'atleta nella settimana del giorno selezionato,
   // per mostrare il progresso verso l'obiettivo di 45 minuti settimanali.
@@ -122,6 +139,7 @@ export const KickingSpecialistsView: React.FC = () => {
     setDate(new Date().toISOString().slice(0, 10));
     setExtraSkills([]);
     setNotes('');
+    resetKickingCounters();
   };
 
   const handleExportCsv = () => {
@@ -178,7 +196,7 @@ export const KickingSpecialistsView: React.FC = () => {
           </button>
           <button
             id="btn-add-kicking-session"
-            onClick={() => setShowModal(true)}
+            onClick={openNewKickingModal}
             className="px-4 py-2.5 bg-[#D4AF37] hover:bg-[#C09F30] text-black text-xs font-bold rounded-lg shadow-md flex items-center gap-2 transition-all active:scale-95"
           >
             <Plus className="w-4 h-4" />
