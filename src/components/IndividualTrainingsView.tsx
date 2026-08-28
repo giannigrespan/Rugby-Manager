@@ -12,10 +12,30 @@ import {
   Award,
   User,
   Calendar,
+  CalendarDays,
   Activity,
   ShieldCheck,
   Download
 } from 'lucide-react';
+
+const WEEKLY_GOAL_SESSIONS = 3;
+
+// Monday (start) / Sunday (end) of the ISO week containing the given YYYY-MM-DD date
+const getWeekRange = (dateStr: string): { monday: Date; sunday: Date } => {
+  const d = new Date(`${dateStr}T00:00:00`);
+  const day = d.getDay(); // 0 = Sunday ... 6 = Saturday
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  const monday = new Date(d);
+  monday.setDate(d.getDate() + diffToMonday);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  return { monday, sunday };
+};
+
+const isDateInRange = (dateStr: string, monday: Date, sunday: Date): boolean => {
+  const t = new Date(`${dateStr}T00:00:00`).getTime();
+  return t >= monday.getTime() && t <= sunday.getTime();
+};
 
 export const IndividualTrainingsView: React.FC = () => {
   const { players, individualLogs, addIndividualLog, isSyncing } = useData();
@@ -112,6 +132,41 @@ export const IndividualTrainingsView: React.FC = () => {
             <Plus className="w-4 h-4" />
             <span>Registra Allenamento Individuale</span>
           </button>
+        </div>
+      </div>
+
+      {/* Weekly Progress Toward the Minimum Sessions Goal */}
+      <div className="bg-[#121214] border border-[#2A2A2E] rounded-xl p-5 shadow-xl">
+        <h3 className="text-xs font-bold text-gray-300 uppercase tracking-widest mb-3 flex items-center gap-2">
+          <CalendarDays className="w-4 h-4 text-[#D4AF37]" />
+          Progressi Settimanali (minimo {WEEKLY_GOAL_SESSIONS} sedute)
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {(isPlayer ? players.filter(p => p.id === currentUser?.id) : players).map(p => {
+            const { monday, sunday } = getWeekRange(new Date().toISOString().slice(0, 10));
+            const sessionsThisWeek = individualLogs.filter(
+              log => log.playerId === p.id && isDateInRange(log.date, monday, sunday)
+            ).length;
+            const pct = Math.min(100, Math.round((sessionsThisWeek / WEEKLY_GOAL_SESSIONS) * 100));
+            const reached = sessionsThisWeek >= WEEKLY_GOAL_SESSIONS;
+
+            return (
+              <div key={p.id} className="bg-[#1D1D21] p-3 rounded-lg border border-[#2A2A2E]">
+                <div className="flex items-center justify-between text-xs mb-1.5">
+                  <span className="font-semibold text-[#E0E0E1] truncate">{p.name}</span>
+                  <span className={`font-bold shrink-0 ${reached ? 'text-emerald-400' : 'text-[#D4AF37]'}`}>
+                    {sessionsThisWeek}/{WEEKLY_GOAL_SESSIONS} sedute
+                  </span>
+                </div>
+                <div className="w-full bg-[#121214] h-1.5 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${reached ? 'bg-emerald-500' : 'bg-[#D4AF37]'}`}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
