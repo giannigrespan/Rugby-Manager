@@ -315,6 +315,7 @@ export const RosterDirectoryView: React.FC = () => {
                           staff.role === 'athletic_trainer' ? 'bg-emerald-500/20 text-emerald-300' :
                           staff.role === 'physiotherapist' ? 'bg-cyan-500/20 text-cyan-300' :
                           staff.role === 'direttore_tecnico' ? 'bg-rose-500/20 text-rose-300' :
+                          staff.role === 'sviluppatore' ? 'bg-violet-500/20 text-violet-300' :
                           'bg-[#1D1D21] text-gray-400'
                         }`}>
                           {staff.role.replace('_', ' ')}

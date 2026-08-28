@@ -278,13 +278,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const userEmail = user.email.toLowerCase();
 
-      // 1. Check if it's Gianni Grespan (Root Admin & Direttore Tecnico)
+      // 1. Check if it's Gianni Grespan (Root Admin & Sviluppatore)
       if (userEmail === 'gianni.grespan@gmail.com') {
         const adminProf: UserProfile = {
           id: user.id,
           email: user.email,
-          name: (user.user_metadata?.full_name as string) || 'Gianni Grespan (Admin & Direttore Tecnico)',
-          role: 'direttore_tecnico',
+          name: (user.user_metadata?.full_name as string) || 'Gianni Grespan (Admin & Sviluppatore)',
+          role: 'sviluppatore',
           isAdmin: true,
           position: 'Staff Tecnico',
           department: 'staff',
@@ -610,8 +610,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ? {
             id: data.user.id,
             email,
-            name: name || 'Gianni Grespan (Admin & Direttore Tecnico)',
-            role: 'direttore_tecnico',
+            name: name || 'Gianni Grespan (Admin & Sviluppatore)',
+            role: 'sviluppatore',
             isAdmin: true,
             position: 'Staff Tecnico',
             department: 'staff',

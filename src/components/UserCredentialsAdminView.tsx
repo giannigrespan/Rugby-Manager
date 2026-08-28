@@ -131,6 +131,14 @@ interface RoleConfigItem {
 
 const ALL_ROLES_CONFIG: RoleConfigItem[] = [
   {
+    role: 'sviluppatore',
+    label: 'Sviluppatore',
+    shortLabel: 'Sviluppatore',
+    subtitle: 'Ruolo tecnico con poteri di Admin: accesso completo a tutte le sezioni',
+    badgeColor: 'bg-violet-500/20 text-violet-300 border-violet-500/40',
+    isAdminAlways: true
+  },
+  {
     role: 'direttore_tecnico',
     label: 'Direttore Tecnico / Dirigente',
     shortLabel: 'Direttore Tecnico',
@@ -247,6 +255,9 @@ export const UserCredentialsAdminView: React.FC = () => {
 
   const handleChangeRole = async (user: UserProfile, newRole: UserRole) => {
     await updateStaffRole(user.id, newRole);
+    if (newRole === 'sviluppatore' && !user.isAdmin) {
+      await toggleStaffAdmin(user.id, true);
+    }
     setFeedbackMessage(`Ruolo di "${user.name}" aggiornato a ${newRole.replace('_', ' ')}.`);
     setTimeout(() => setFeedbackMessage(null), 3500);
   };
@@ -810,6 +821,7 @@ export const UserCredentialsAdminView: React.FC = () => {
                                     <option value="athletic_trainer">Preparatore Atletico</option>
                                     <option value="physiotherapist">Fisioterapista</option>
                                     <option value="direttore_tecnico">Direttore Tecnico / Dirigente</option>
+                                    <option value="sviluppatore">Sviluppatore</option>
                                   </select>
                                 ) : (
                                   <span className="inline-block text-[10px] text-gray-400 mt-0.5">

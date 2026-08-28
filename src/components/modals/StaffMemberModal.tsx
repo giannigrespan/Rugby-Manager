@@ -47,6 +47,13 @@ export const StaffMemberModal: React.FC<StaffMemberModalProps> = ({
 
   if (!isOpen) return null;
 
+  const handleRoleChange = (newRole: UserRole) => {
+    setRole(newRole);
+    if (newRole === 'sviluppatore') {
+      setIsAdmin(true);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
@@ -172,7 +179,7 @@ export const StaffMemberModal: React.FC<StaffMemberModalProps> = ({
             </label>
             <select
               value={role}
-              onChange={(e) => setRole(e.target.value as UserRole)}
+              onChange={(e) => handleRoleChange(e.target.value as UserRole)}
               className="w-full px-3.5 py-2.5 bg-[#1D1D21] border border-[#2A2A2E] rounded-xl text-sm text-white focus:outline-none focus:border-[#D4AF37] transition-all cursor-pointer"
             >
               <option value="head_coach">Head Coach / Primo Allenatore</option>
@@ -180,6 +187,7 @@ export const StaffMemberModal: React.FC<StaffMemberModalProps> = ({
               <option value="athletic_trainer">Preparatore Atletico / S&C Trainer</option>
               <option value="physiotherapist">Fisioterapista / Medico Sanitario</option>
               <option value="direttore_tecnico">Direttore Tecnico / Dirigente</option>
+              <option value="sviluppatore">Sviluppatore</option>
             </select>
           </div>
 
