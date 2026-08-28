@@ -65,16 +65,20 @@ export const AttendanceMatrixView: React.FC = () => {
 
   const isStaff = currentUser?.role !== 'player';
 
-  // Filter players
+  // Filter players. An athlete only ever sees her own row in the matrix;
+  // staff can search/filter across the whole roster.
   const filteredPlayers = useMemo(() => {
+    if (!isStaff) {
+      return players.filter(p => p.id === currentUser?.id);
+    }
     return players.filter(p => {
       const matchDep = selectedDepartment === 'all' || p.department === selectedDepartment;
-      const matchQuery = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      const matchQuery = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          (p.jerseyNumber && p.jerseyNumber.toString().includes(searchQuery)) ||
                          p.position.toLowerCase().includes(searchQuery.toLowerCase());
       return matchDep && matchQuery;
     });
-  }, [players, selectedDepartment, searchQuery]);
+  }, [players, selectedDepartment, searchQuery, isStaff, currentUser]);
 
   // Active or completed sessions for columns
   const activeSessions = useMemo(() => {
@@ -326,56 +330,58 @@ export const AttendanceMatrixView: React.FC = () => {
       {/* Action & Filter Controls */}
       <div className="bg-[#121214] border border-[#2A2A2E] rounded-xl p-4 shadow-xl flex flex-wrap items-center justify-between gap-4">
         
-        {/* Search & Department Filters */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative min-w-[260px]">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              id="search-matrix-players"
-              type="text"
-              placeholder="Cerca per nome, maglia o ruolo..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-[#1D1D21] border border-[#2A2A2E] rounded-lg text-sm text-[#E0E0E1] placeholder-gray-500 focus:outline-none focus:border-[#D4AF37] transition-colors"
-            />
-          </div>
+        {/* Search & Department Filters (staff only - an athlete has just her own row) */}
+        {isStaff && (
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative min-w-[260px]">
+              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                id="search-matrix-players"
+                type="text"
+                placeholder="Cerca per nome, maglia o ruolo..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 bg-[#1D1D21] border border-[#2A2A2E] rounded-lg text-sm text-[#E0E0E1] placeholder-gray-500 focus:outline-none focus:border-[#D4AF37] transition-colors"
+              />
+            </div>
 
-          <div className="flex items-center bg-[#1D1D21] p-1 rounded-lg border border-[#2A2A2E]">
-            <button
-              id="filter-dep-all"
-              onClick={() => setSelectedDepartment('all')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-                selectedDepartment === 'all'
-                  ? 'bg-[#D4AF37] text-black shadow-sm'
-                  : 'text-gray-400 hover:text-[#E0E0E1]'
-              }`}
-            >
-              Tutte le Atlete ({players.length})
-            </button>
-            <button
-              id="filter-dep-avanti"
-              onClick={() => setSelectedDepartment('avanti')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-                selectedDepartment === 'avanti'
-                  ? 'bg-[#D4AF37] text-black shadow-sm'
-                  : 'text-gray-400 hover:text-[#E0E0E1]'
-              }`}
-            >
-              Avanti ({players.filter(p => p.department === 'avanti').length})
-            </button>
-            <button
-              id="filter-dep-trequarti"
-              onClick={() => setSelectedDepartment('trequarti')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-                selectedDepartment === 'trequarti'
-                  ? 'bg-[#D4AF37] text-black shadow-sm'
-                  : 'text-gray-400 hover:text-[#E0E0E1]'
-              }`}
-            >
-              Trequarti ({players.filter(p => p.department === 'trequarti').length})
-            </button>
+            <div className="flex items-center bg-[#1D1D21] p-1 rounded-lg border border-[#2A2A2E]">
+              <button
+                id="filter-dep-all"
+                onClick={() => setSelectedDepartment('all')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                  selectedDepartment === 'all'
+                    ? 'bg-[#D4AF37] text-black shadow-sm'
+                    : 'text-gray-400 hover:text-[#E0E0E1]'
+                }`}
+              >
+                Tutte le Atlete ({players.length})
+              </button>
+              <button
+                id="filter-dep-avanti"
+                onClick={() => setSelectedDepartment('avanti')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                  selectedDepartment === 'avanti'
+                    ? 'bg-[#D4AF37] text-black shadow-sm'
+                    : 'text-gray-400 hover:text-[#E0E0E1]'
+                }`}
+              >
+                Avanti ({players.filter(p => p.department === 'avanti').length})
+              </button>
+              <button
+                id="filter-dep-trequarti"
+                onClick={() => setSelectedDepartment('trequarti')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                  selectedDepartment === 'trequarti'
+                    ? 'bg-[#D4AF37] text-black shadow-sm'
+                    : 'text-gray-400 hover:text-[#E0E0E1]'
+                }`}
+              >
+                Trequarti ({players.filter(p => p.department === 'trequarti').length})
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Staff Quick Actions */}
         <div className="flex items-center gap-2 flex-wrap">
