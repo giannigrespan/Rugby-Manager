@@ -14,21 +14,18 @@ import {
   Flame,
   CheckCircle,
   Percent,
-  Download,
-  Pencil
+  Download
 } from 'lucide-react';
 
 export const KickingSpecialistsView: React.FC = () => {
-  const { players, kickingSessions, addKickingSession, updateKickingSession, isSyncing } = useData();
+  const { players, kickingSessions, addKickingSession, isSyncing } = useData();
   const { currentUser } = useAuth();
-  const isCoach = currentUser?.role === 'head_coach' || currentUser?.role === 'assistant_coach';
 
   const [showModal, setShowModal] = useState(false);
-  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
-  const kickerCandidates = players.filter(p =>
-    p.position.includes('Apertura') ||
-    p.position.includes('Mischia') ||
-    p.position.includes('Centro') ||
+  const kickerCandidates = players.filter(p => 
+    p.position.includes('Apertura') || 
+    p.position.includes('Mischia') || 
+    p.position.includes('Centro') || 
     p.position.includes('Estremo')
   );
 
@@ -47,44 +44,6 @@ export const KickingSpecialistsView: React.FC = () => {
   const [zoneSinistra, setZoneSinistra] = useState(80);
   const [notes, setNotes] = useState('');
 
-  const openCreateModal = () => {
-    setEditingSessionId(null);
-    setSelectedPlayerId(kickerCandidates[0]?.id || 'p-26');
-    setDurationMin(45);
-    setPiazzatiTotal(25);
-    setPiazzatiSuccess(22);
-    setDropTotal(5);
-    setDropSuccess(4);
-    setSpostamentoTotal(6);
-    setSpostamentoSuccess(5);
-    setUpAndUnderTotal(4);
-    setUpAndUnderSuccess(3);
-    setZoneCentro(90);
-    setZoneDestra(85);
-    setZoneSinistra(80);
-    setNotes('');
-    setShowModal(true);
-  };
-
-  const openEditModal = (ks: KickingSession) => {
-    setEditingSessionId(ks.id);
-    setSelectedPlayerId(ks.playerId);
-    setDurationMin(ks.durationMin);
-    setPiazzatiTotal(ks.stats.piazzati.total);
-    setPiazzatiSuccess(ks.stats.piazzati.success);
-    setDropTotal(ks.stats.drop.total);
-    setDropSuccess(ks.stats.drop.success);
-    setSpostamentoTotal(ks.stats.spostamento.total);
-    setSpostamentoSuccess(ks.stats.spostamento.success);
-    setUpAndUnderTotal(ks.stats.upAndUnder.total);
-    setUpAndUnderSuccess(ks.stats.upAndUnder.success);
-    setZoneCentro(ks.fieldZoneSuccess?.centro ?? 90);
-    setZoneDestra(ks.fieldZoneSuccess?.destra ?? 85);
-    setZoneSinistra(ks.fieldZoneSuccess?.sinistra ?? 80);
-    setNotes(ks.notes || '');
-    setShowModal(true);
-  };
-
   const handleCreateKicking = async (e: React.FormEvent) => {
     e.preventDefault();
     const kicker = players.find(p => p.id === selectedPlayerId);
@@ -92,48 +51,29 @@ export const KickingSpecialistsView: React.FC = () => {
 
     const totalKicks = piazzatiTotal + dropTotal + spostamentoTotal + upAndUnderTotal;
     const successfulKicks = piazzatiSuccess + dropSuccess + spostamentoSuccess + upAndUnderSuccess;
-    const stats = {
-      piazzati: { total: piazzatiTotal, success: piazzatiSuccess },
-      drop: { total: dropTotal, success: dropSuccess },
-      spostamento: { total: spostamentoTotal, success: spostamentoSuccess },
-      upAndUnder: { total: upAndUnderTotal, success: upAndUnderSuccess }
-    };
-    const fieldZoneSuccess = {
-      centro: zoneCentro,
-      destra: zoneDestra,
-      sinistra: zoneSinistra
-    };
 
-    if (editingSessionId) {
-      const existing = kickingSessions.find(k => k.id === editingSessionId);
-      if (!existing) return;
-      await updateKickingSession({
-        ...existing,
-        playerId: kicker.id,
-        playerName: kicker.name,
-        durationMin,
-        totalKicks,
-        successfulKicks,
-        stats,
-        fieldZoneSuccess,
-        notes: notes.trim() ? notes : undefined
-      });
-    } else {
-      await addKickingSession({
-        playerId: kicker.id,
-        playerName: kicker.name,
-        date: new Date().toISOString().slice(0, 10),
-        durationMin,
-        totalKicks,
-        successfulKicks,
-        stats,
-        fieldZoneSuccess,
-        notes: notes.trim() ? notes : undefined
-      });
-    }
+    await addKickingSession({
+      playerId: kicker.id,
+      playerName: kicker.name,
+      date: new Date().toISOString().slice(0, 10),
+      durationMin,
+      totalKicks,
+      successfulKicks,
+      stats: {
+        piazzati: { total: piazzatiTotal, success: piazzatiSuccess },
+        drop: { total: dropTotal, success: dropSuccess },
+        spostamento: { total: spostamentoTotal, success: spostamentoSuccess },
+        upAndUnder: { total: upAndUnderTotal, success: upAndUnderSuccess }
+      },
+      fieldZoneSuccess: {
+        centro: zoneCentro,
+        destra: zoneDestra,
+        sinistra: zoneSinistra
+      },
+      notes: notes.trim() ? notes : undefined
+    });
 
     setShowModal(false);
-    setEditingSessionId(null);
     setNotes('');
   };
 
@@ -190,7 +130,7 @@ export const KickingSpecialistsView: React.FC = () => {
           </button>
           <button
             id="btn-add-kicking-session"
-            onClick={openCreateModal}
+            onClick={() => setShowModal(true)}
             className="px-4 py-2.5 bg-[#D4AF37] hover:bg-[#C09F30] text-black text-xs font-bold rounded-lg shadow-md flex items-center gap-2 transition-all active:scale-95"
           >
             <Plus className="w-4 h-4" />
@@ -216,19 +156,8 @@ export const KickingSpecialistsView: React.FC = () => {
                     <span className="text-[#D4AF37] font-semibold">{ks.durationMin} minuti</span>
                   </p>
                 </div>
-                <div className="text-right flex flex-col items-end gap-1.5">
-                  <div className="flex items-center gap-1.5">
-                    {isCoach && (
-                      <button
-                        onClick={() => openEditModal(ks)}
-                        title="Modifica sessione"
-                        className="p-1.5 bg-[#1D1D21] hover:bg-[#26262B] text-gray-400 hover:text-[#D4AF37] rounded-lg border border-[#2A2A2E] transition-colors"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                    <span className="text-2xl font-black text-[#D4AF37]">{overallPct}%</span>
-                  </div>
+                <div className="text-right">
+                  <span className="text-2xl font-black text-[#D4AF37]">{overallPct}%</span>
                   <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Precisione Totale</p>
                 </div>
               </div>
@@ -319,9 +248,9 @@ export const KickingSpecialistsView: React.FC = () => {
             <div className="flex items-center justify-between border-b border-[#2A2A2E] pb-3">
               <h3 className="text-[#E0E0E1] font-bold text-base font-serif flex items-center gap-2">
                 <Crosshair className="w-5 h-5 text-[#D4AF37]" />
-                {editingSessionId ? 'Modifica Sessione Calci' : 'Registra Sessione Calci (45 min)'}
+                Registra Sessione Calci (45 min)
               </h3>
-              <button onClick={() => { setShowModal(false); setEditingSessionId(null); }} className="text-gray-400 hover:text-white p-1">✕</button>
+              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-white p-1">✕</button>
             </div>
 
             <form onSubmit={handleCreateKicking} className="space-y-4 text-xs">
@@ -442,7 +371,7 @@ export const KickingSpecialistsView: React.FC = () => {
               <div className="flex justify-end gap-2 pt-2 border-t border-[#2A2A2E]">
                 <button
                   type="button"
-                  onClick={() => { setShowModal(false); setEditingSessionId(null); }}
+                  onClick={() => setShowModal(false)}
                   className="px-4 py-2 bg-[#1D1D21] hover:bg-[#26262B] text-gray-300 font-semibold rounded-lg border border-[#2A2A2E]"
                 >
                   Annulla
@@ -452,7 +381,7 @@ export const KickingSpecialistsView: React.FC = () => {
                   disabled={isSyncing}
                   className="px-4 py-2 bg-[#D4AF37] hover:bg-[#C09F30] text-black font-bold rounded-lg shadow-md transition-all active:scale-95"
                 >
-                  {editingSessionId ? 'Salva Modifiche' : 'Salva Statistiche Calci'}
+                  Salva Statistiche Calci
                 </button>
               </div>
 

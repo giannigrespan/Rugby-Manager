@@ -14,19 +14,16 @@ import {
   Calendar,
   Activity,
   ShieldCheck,
-  Download,
-  Pencil
+  Download
 } from 'lucide-react';
 
 export const IndividualTrainingsView: React.FC = () => {
-  const { players, individualLogs, addIndividualLog, updateIndividualLog, isSyncing } = useData();
+  const { players, individualLogs, addIndividualLog, isSyncing } = useData();
   const { currentUser } = useAuth();
   const isPlayer = currentUser?.role === 'player';
-  const isCoach = currentUser?.role === 'head_coach' || currentUser?.role === 'assistant_coach';
   const defaultPlayerId = isPlayer ? currentUser.id : players[0]?.id || '';
 
   const [showModal, setShowModal] = useState(false);
-  const [editingLogId, setEditingLogId] = useState<string | null>(null);
   const [selectedPlayerId, setSelectedPlayerId] = useState(defaultPlayerId);
   const [title, setTitle] = useState('');
   const [type, setType] = useState<IndividualTrainingLog['type']>('Palestra / Forza');
@@ -35,67 +32,25 @@ export const IndividualTrainingsView: React.FC = () => {
   const [exercisesDone, setExercisesDone] = useState('');
   const [notes, setNotes] = useState('');
 
-  const openCreateModal = () => {
-    setEditingLogId(null);
-    setSelectedPlayerId(defaultPlayerId);
-    setTitle('');
-    setType('Palestra / Forza');
-    setDurationMin(45);
-    setPerceivedEffort(7);
-    setExercisesDone('');
-    setNotes('');
-    setShowModal(true);
-  };
-
-  const openEditModal = (log: IndividualTrainingLog) => {
-    setEditingLogId(log.id);
-    setSelectedPlayerId(log.playerId);
-    setTitle(log.title);
-    setType(log.type);
-    setDurationMin(log.durationMin);
-    setPerceivedEffort(log.perceivedEffort);
-    setExercisesDone(log.exercisesDone);
-    setNotes(log.notes || '');
-    setShowModal(true);
-  };
-
   const handleCreateLog = async (e: React.FormEvent) => {
     e.preventDefault();
     const player = players.find(p => p.id === selectedPlayerId);
     if (!player || !title.trim()) return;
 
-    if (editingLogId) {
-      const existing = individualLogs.find(l => l.id === editingLogId);
-      if (!existing) return;
-      await updateIndividualLog({
-        ...existing,
-        playerId: player.id,
-        playerName: player.name,
-        title,
-        type,
-        durationMin,
-        perceivedEffort,
-        exercisesDone,
-        notes: notes.trim() ? notes : undefined,
-        verifiedByCoach: isCoach ? true : existing.verifiedByCoach
-      });
-    } else {
-      await addIndividualLog({
-        playerId: player.id,
-        playerName: player.name,
-        date: new Date().toISOString().slice(0, 10),
-        title,
-        type,
-        durationMin,
-        perceivedEffort,
-        exercisesDone,
-        notes: notes.trim() ? notes : undefined,
-        verifiedByCoach: currentUser?.role !== 'player'
-      });
-    }
+    await addIndividualLog({
+      playerId: player.id,
+      playerName: player.name,
+      date: new Date().toISOString().slice(0, 10),
+      title,
+      type,
+      durationMin,
+      perceivedEffort,
+      exercisesDone,
+      notes: notes.trim() ? notes : undefined,
+      verifiedByCoach: currentUser?.role !== 'player'
+    });
 
     setShowModal(false);
-    setEditingLogId(null);
     setTitle('');
     setExercisesDone('');
     setNotes('');
@@ -151,7 +106,7 @@ export const IndividualTrainingsView: React.FC = () => {
           </button>
           <button
             id="btn-log-individual-session"
-            onClick={openCreateModal}
+            onClick={() => setShowModal(true)}
             className="px-4 py-2.5 bg-[#D4AF37] hover:bg-[#C09F30] text-black text-xs font-bold rounded-lg shadow-md flex items-center gap-2 transition-all active:scale-95"
           >
             <Plus className="w-4 h-4" />
@@ -173,22 +128,11 @@ export const IndividualTrainingsView: React.FC = () => {
                 <p className="text-xs font-semibold text-gray-300 mt-0.5">{log.playerName}</p>
               </div>
 
-              <div className="text-right flex flex-col items-end gap-1.5">
-                <div className="flex items-center gap-1.5">
-                  {isCoach && (
-                    <button
-                      onClick={() => openEditModal(log)}
-                      title="Modifica seduta"
-                      className="p-1.5 bg-[#1D1D21] hover:bg-[#26262B] text-gray-400 hover:text-[#D4AF37] rounded-lg border border-[#2A2A2E] transition-colors"
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                  <span className="text-sm font-black text-[#D4AF37] bg-[#1D1D21] border border-[#2A2A2E] px-2 py-0.5 rounded-lg">
-                    RPE {log.perceivedEffort}/10
-                  </span>
-                </div>
-                <p className="text-[10px] text-gray-400 flex items-center gap-1 justify-end">
+              <div className="text-right">
+                <span className="text-sm font-black text-[#D4AF37] bg-[#1D1D21] border border-[#2A2A2E] px-2 py-0.5 rounded-lg">
+                  RPE {log.perceivedEffort}/10
+                </span>
+                <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1 justify-end">
                   <Clock className="w-3 h-3 text-gray-500" />
                   {log.durationMin} min
                 </p>
@@ -236,16 +180,14 @@ export const IndividualTrainingsView: React.FC = () => {
               <div>
                 <h3 className="text-[#E0E0E1] font-bold text-base font-serif flex items-center gap-2">
                   <Dumbbell className="w-5 h-5 text-[#D4AF37]" />
-                  {editingLogId ? 'Modifica Seduta Individuale' : 'Registra Seduta Individuale'}
+                  Registra Seduta Individuale
                 </h3>
                 <p className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
                   <Calendar className="w-3 h-3" />
-                  {editingLogId
-                    ? `Data: ${individualLogs.find(l => l.id === editingLogId)?.date || ''}`
-                    : `Data: ${new Date().toLocaleDateString('it-IT')} (registrata automaticamente)`}
+                  Data: {new Date().toLocaleDateString('it-IT')} (registrata automaticamente)
                 </p>
               </div>
-              <button onClick={() => { setShowModal(false); setEditingLogId(null); }} className="text-gray-400 hover:text-white p-1">✕</button>
+              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-white p-1">✕</button>
             </div>
 
             <form onSubmit={handleCreateLog} className="space-y-4 text-xs">
@@ -348,7 +290,7 @@ export const IndividualTrainingsView: React.FC = () => {
               <div className="flex justify-end gap-2 pt-2 border-t border-[#2A2A2E]">
                 <button
                   type="button"
-                  onClick={() => { setShowModal(false); setEditingLogId(null); }}
+                  onClick={() => setShowModal(false)}
                   className="px-4 py-2 bg-[#1D1D21] hover:bg-[#26262B] text-gray-300 font-semibold rounded-lg border border-[#2A2A2E]"
                 >
                   Annulla
@@ -358,7 +300,7 @@ export const IndividualTrainingsView: React.FC = () => {
                   disabled={isSyncing}
                   className="px-4 py-2 bg-[#D4AF37] hover:bg-[#C09F30] text-black font-bold rounded-lg shadow-md transition-all active:scale-95"
                 >
-                  {editingLogId ? 'Salva Modifiche' : 'Salva Allenamento'}
+                  Salva Allenamento
                 </button>
               </div>
 
