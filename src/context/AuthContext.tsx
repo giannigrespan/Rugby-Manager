@@ -278,13 +278,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const userEmail = user.email.toLowerCase();
 
-      // 1. Check if it's Gianni Grespan (Root Admin & Head Coach)
+      // 1. Check if it's Gianni Grespan (Root Admin & Programmatore)
       if (userEmail === 'gianni.grespan@gmail.com') {
         const adminProf: UserProfile = {
           id: user.id,
           email: user.email,
-          name: (user.user_metadata?.full_name as string) || 'Gianni Grespan (Admin & Head Coach)',
-          role: 'head_coach',
+          name: (user.user_metadata?.full_name as string) || 'Gianni Grespan (Admin & Programmatore)',
+          role: 'programmatore',
           isAdmin: true,
           position: 'Staff Tecnico',
           department: 'staff',
@@ -454,7 +454,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const updated = {
           ...s,
           isAdmin,
-          role: isAdmin && s.role === 'player' ? 'direttore_tecnico' as UserRole : s.role
+          role: isAdmin && s.role === 'player' ? 'programmatore' as UserRole : s.role
         };
         targetMember = updated;
         return updated;
@@ -466,7 +466,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const updatedUser = {
         ...currentUser,
         isAdmin,
-        role: isAdmin && currentUser.role === 'player' ? 'direttore_tecnico' as UserRole : currentUser.role
+        role: isAdmin && currentUser.role === 'player' ? 'programmatore' as UserRole : currentUser.role
       };
       setCurrentUser(updatedUser);
       localStorage.setItem('rugby_current_user', JSON.stringify(updatedUser));
@@ -489,7 +489,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const updated = {
           ...s,
           role,
-          isAdmin: role === 'direttore_tecnico' ? true : s.isAdmin
+          isAdmin: role === 'programmatore' ? true : s.isAdmin
         };
         targetMember = updated;
         return updated;
@@ -501,7 +501,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const updatedUser = {
         ...currentUser,
         role,
-        isAdmin: role === 'direttore_tecnico' ? true : currentUser.isAdmin
+        isAdmin: role === 'programmatore' ? true : currentUser.isAdmin
       };
       setCurrentUser(updatedUser);
       localStorage.setItem('rugby_current_user', JSON.stringify(updatedUser));
@@ -626,8 +626,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ? {
             id: data.user.id,
             email,
-            name: name || 'Gianni Grespan (Admin & Head Coach)',
-            role: 'head_coach',
+            name: name || 'Gianni Grespan (Admin & Programmatore)',
+            role: 'programmatore',
             isAdmin: true,
             position: 'Staff Tecnico',
             department: 'staff',

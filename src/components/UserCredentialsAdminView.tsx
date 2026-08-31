@@ -131,6 +131,14 @@ interface RoleConfigItem {
 
 const ALL_ROLES_CONFIG: RoleConfigItem[] = [
   {
+    role: 'programmatore',
+    label: 'Programmatore',
+    shortLabel: 'Programmatore',
+    subtitle: 'Accesso completo alla piattaforma e alla configurazione tecnica',
+    badgeColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40',
+    isAdminAlways: true
+  },
+  {
     role: 'direttore_tecnico',
     label: 'Direttore Tecnico / Dirigente',
     shortLabel: 'Direttore Tecnico',
@@ -208,7 +216,7 @@ export const UserCredentialsAdminView: React.FC = () => {
     ...players
   ];
 
-  const adminCount = staffUsers.filter(s => s.isAdmin || s.role === 'direttore_tecnico').length;
+  const adminCount = staffUsers.filter(s => s.isAdmin || s.role === 'programmatore').length;
 
   const filteredUsers = allUsers.filter(u => {
     const matchesSearch = 
@@ -219,7 +227,7 @@ export const UserCredentialsAdminView: React.FC = () => {
     if (!matchesSearch) return false;
 
     if (filterType === 'staff') return u.role !== 'player';
-    if (filterType === 'admins') return u.isAdmin || u.role === 'direttore_tecnico';
+    if (filterType === 'admins') return u.isAdmin || u.role === 'programmatore';
     if (filterType === 'players') return u.role === 'player';
     return true;
   });
@@ -235,7 +243,7 @@ export const UserCredentialsAdminView: React.FC = () => {
   };
 
   const handleToggleAdmin = async (user: UserProfile) => {
-    const nextState = !(user.isAdmin || user.role === 'direttore_tecnico');
+    const nextState = !(user.isAdmin || user.role === 'programmatore');
     await toggleStaffAdmin(user.id, nextState);
     setFeedbackMessage(
       nextState 
@@ -651,7 +659,7 @@ export const UserCredentialsAdminView: React.FC = () => {
               {/* Quick Staff Admin Badges */}
               <div className="flex flex-wrap items-center gap-2">
                 {staffUsers.map(staff => {
-                  const isUserAdmin = staff.isAdmin || staff.role === 'direttore_tecnico';
+                  const isUserAdmin = staff.isAdmin || staff.role === 'programmatore';
                   return (
                     <div 
                       key={staff.id}
@@ -764,7 +772,7 @@ export const UserCredentialsAdminView: React.FC = () => {
                   ) : (
                     filteredUsers.map((user) => {
                       const isStaff = user.role !== 'player';
-                      const isUserAdmin = user.isAdmin || user.role === 'direttore_tecnico';
+                      const isUserAdmin = user.isAdmin || user.role === 'programmatore';
                       const pwd = user.tempPassword;
                       const isPasswordVisible = showPasswordMap[user.id] || false;
 
@@ -810,6 +818,7 @@ export const UserCredentialsAdminView: React.FC = () => {
                                     <option value="athletic_trainer">Preparatore Atletico</option>
                                     <option value="physiotherapist">Fisioterapista</option>
                                     <option value="direttore_tecnico">Direttore Tecnico / Dirigente</option>
+                                    <option value="programmatore">Programmatore</option>
                                   </select>
                                 ) : (
                                   <span className="inline-block text-[10px] text-gray-400 mt-0.5">
