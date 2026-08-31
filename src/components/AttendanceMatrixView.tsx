@@ -22,6 +22,7 @@ import {
   Edit3,
   FileSpreadsheet,
   ChevronRight,
+  ChevronLeft,
   ShieldAlert,
   Info,
   Lock,
@@ -80,6 +81,8 @@ export const AttendanceMatrixView: React.FC = () => {
   const [selectedDepartment, setSelectedDepartment] = useState<'all' | 'avanti' | 'trequarti'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSessionId, setSelectedSessionId] = useState<string>(sessions[0]?.id || '');
+  // 0 = current week, -1 = previous week, +1 = next week, etc.
+  const [weekOffset, setWeekOffset] = useState(0);
   const [editingCell, setEditingCell] = useState<{
     sessionId: string;
     playerId: string;
@@ -108,9 +111,13 @@ export const AttendanceMatrixView: React.FC = () => {
     return [...sessions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [sessions]);
 
-  // Matrix columns are limited to the current week (Sunday to Saturday) so
-  // the table stays readable instead of listing every session ever created.
-  const weekStart = useMemo(() => getSundayOfWeek(new Date().toISOString().slice(0, 10)), []);
+  // Matrix columns show one week at a time (Sunday to Saturday), navigable
+  // with weekOffset, instead of listing every session ever created.
+  const weekStart = useMemo(() => {
+    const d = getSundayOfWeek(new Date().toISOString().slice(0, 10));
+    d.setDate(d.getDate() + weekOffset * 7);
+    return d;
+  }, [weekOffset]);
   const weekEnd = useMemo(() => {
     const d = new Date(weekStart);
     d.setDate(d.getDate() + 6);
@@ -508,10 +515,37 @@ export const AttendanceMatrixView: React.FC = () => {
 
       {/* Main Interactive Matrix Table */}
       <div className="bg-[#121214] border border-[#2A2A2E] rounded-xl shadow-2xl overflow-hidden">
-        <div className="px-4 py-2.5 border-b border-[#2A2A2E] bg-[#0A0A0B] text-[11px] text-gray-400 flex items-center justify-between gap-2 flex-wrap">
-          <span>
-            Settimana corrente: <span className="text-[#D4AF37] font-semibold">{formatColumnHeader(toDateKey(weekStart))} - {formatColumnHeader(toDateKey(weekEnd))}</span>
-          </span>
+        <div className="px-4 py-2.5 border-b border-[#2A2A2E] bg-[#0A0A0B] text-[11px] text-gray-400 flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <button
+              id="btn-week-prev"
+              onClick={() => setWeekOffset(o => o - 1)}
+              title="Settimana precedente"
+              className="p-1.5 bg-[#1D1D21] hover:bg-[#26262B] text-gray-300 hover:text-white rounded-lg border border-[#2A2A2E] transition-colors"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+            <span>
+              {weekOffset === 0 ? 'Settimana corrente' : 'Settimana'}: <span className="text-[#D4AF37] font-semibold">{formatColumnHeader(toDateKey(weekStart))} - {formatColumnHeader(toDateKey(weekEnd))}</span>
+            </span>
+            <button
+              id="btn-week-next"
+              onClick={() => setWeekOffset(o => o + 1)}
+              title="Settimana successiva"
+              className="p-1.5 bg-[#1D1D21] hover:bg-[#26262B] text-gray-300 hover:text-white rounded-lg border border-[#2A2A2E] transition-colors"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+            {weekOffset !== 0 && (
+              <button
+                id="btn-week-today"
+                onClick={() => setWeekOffset(0)}
+                className="px-2.5 py-1 bg-[#1D1D21] hover:bg-[#26262B] text-[#D4AF37] text-[11px] font-semibold rounded-lg border border-[#2A2A2E] transition-colors"
+              >
+                Torna a Oggi
+              </button>
+            )}
+          </div>
           {currentWeekSessions.length === 0 && (
             <span className="text-gray-500 italic">Nessuna sessione programmata questa settimana</span>
           )}
