@@ -45,7 +45,9 @@ interface DataContextType {
   toggleTaskCompletion: (taskId: string, playerId: string, completed: boolean, note?: string, progress?: number) => Promise<void>;
   deleteTask: (taskId: string) => Promise<void>;
   addKickingSession: (session: Omit<KickingSession, 'id'>) => Promise<void>;
+  updateKickingSession: (session: KickingSession) => Promise<void>;
   addIndividualLog: (log: Omit<IndividualTrainingLog, 'id'>) => Promise<void>;
+  updateIndividualLog: (log: IndividualTrainingLog) => Promise<void>;
   updatePlayer: (player: UserProfile) => Promise<void>;
   addPlayer: (player: Omit<UserProfile, 'id' | 'createdAt'>) => Promise<void>;
   deletePlayer: (playerId: string) => Promise<void>;
@@ -568,6 +570,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const updateKickingSession = async (session: KickingSession) => {
+    setKickingSessions(prev => prev.map(k => k.id === session.id ? session : k));
+    try {
+      const { error } = await supabase.from('kicking_sessions').upsert(session);
+      if (error) throw error;
+    } catch (e) {
+      console.warn('Kicking update cloud error:', e);
+    }
+  };
+
   const addIndividualLog = async (logData: Omit<IndividualTrainingLog, 'id'>) => {
     const newId = `ind-${Date.now()}`;
     const newLog: IndividualTrainingLog = { ...logData, id: newId };
@@ -577,6 +589,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) throw error;
     } catch (e) {
       console.warn('Ind log write error:', e);
+    }
+  };
+
+  const updateIndividualLog = async (log: IndividualTrainingLog) => {
+    setIndividualLogs(prev => prev.map(l => l.id === log.id ? log : l));
+    try {
+      const { error } = await supabase.from('individual_logs').upsert(log);
+      if (error) throw error;
+    } catch (e) {
+      console.warn('Ind log update error:', e);
     }
   };
 
@@ -833,7 +855,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       toggleTaskCompletion,
       deleteTask,
       addKickingSession,
+      updateKickingSession,
       addIndividualLog,
+      updateIndividualLog,
       updatePlayer,
       addPlayer,
       deletePlayer,
