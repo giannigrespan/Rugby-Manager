@@ -15,15 +15,16 @@ import {
   CheckCircle,
   Percent,
   Download,
-  Trash2
+  Trash2,
+  Edit2
 } from 'lucide-react';
 
 export const KickingSpecialistsView: React.FC = () => {
-  const { players, kickingSessions, addKickingSession, deleteKickingSession, isSyncing } = useData();
+  const { players, kickingSessions, addKickingSession, updateKickingSession, deleteKickingSession, isSyncing } = useData();
   const { currentUser } = useAuth();
   const isStaff = currentUser?.role !== 'player';
 
-  const canDeleteKick = (ks: KickingSession) => isStaff || ks.playerId === currentUser?.id;
+  const canEditKick = (ks: KickingSession) => isStaff || ks.playerId === currentUser?.id;
 
   const handleDeleteKick = (ks: KickingSession) => {
     if (window.confirm(`Eliminare la sessione calci di ${ks.playerName} del ${ks.date}?`)) {
@@ -32,10 +33,11 @@ export const KickingSpecialistsView: React.FC = () => {
   };
 
   const [showModal, setShowModal] = useState(false);
-  const kickerCandidates = players.filter(p => 
-    p.position.includes('Apertura') || 
-    p.position.includes('Mischia') || 
-    p.position.includes('Centro') || 
+  const [editingKick, setEditingKick] = useState<KickingSession | null>(null);
+  const kickerCandidates = players.filter(p =>
+    p.position.includes('Apertura') ||
+    p.position.includes('Mischia') ||
+    p.position.includes('Centro') ||
     p.position.includes('Estremo')
   );
 
@@ -54,6 +56,48 @@ export const KickingSpecialistsView: React.FC = () => {
   const [zoneSinistra, setZoneSinistra] = useState(80);
   const [notes, setNotes] = useState('');
 
+  const resetKickForm = () => {
+    setSelectedPlayerId(kickerCandidates[0]?.id || 'p-26');
+    setDurationMin(45);
+    setPiazzatiTotal(25);
+    setPiazzatiSuccess(22);
+    setDropTotal(5);
+    setDropSuccess(4);
+    setSpostamentoTotal(6);
+    setSpostamentoSuccess(5);
+    setUpAndUnderTotal(4);
+    setUpAndUnderSuccess(3);
+    setZoneCentro(90);
+    setZoneDestra(85);
+    setZoneSinistra(80);
+    setNotes('');
+  };
+
+  const startEditKick = (ks: KickingSession) => {
+    setEditingKick(ks);
+    setSelectedPlayerId(ks.playerId);
+    setDurationMin(ks.durationMin);
+    setPiazzatiTotal(ks.stats.piazzati.total);
+    setPiazzatiSuccess(ks.stats.piazzati.success);
+    setDropTotal(ks.stats.drop.total);
+    setDropSuccess(ks.stats.drop.success);
+    setSpostamentoTotal(ks.stats.spostamento.total);
+    setSpostamentoSuccess(ks.stats.spostamento.success);
+    setUpAndUnderTotal(ks.stats.upAndUnder.total);
+    setUpAndUnderSuccess(ks.stats.upAndUnder.success);
+    setZoneCentro(ks.fieldZoneSuccess?.centro ?? 90);
+    setZoneDestra(ks.fieldZoneSuccess?.destra ?? 85);
+    setZoneSinistra(ks.fieldZoneSuccess?.sinistra ?? 80);
+    setNotes(ks.notes || '');
+    setShowModal(true);
+  };
+
+  const closeKickModal = () => {
+    setShowModal(false);
+    setEditingKick(null);
+    resetKickForm();
+  };
+
   const handleCreateKicking = async (e: React.FormEvent) => {
     e.preventDefault();
     const kicker = players.find(p => p.id === selectedPlayerId);
@@ -62,10 +106,10 @@ export const KickingSpecialistsView: React.FC = () => {
     const totalKicks = piazzatiTotal + dropTotal + spostamentoTotal + upAndUnderTotal;
     const successfulKicks = piazzatiSuccess + dropSuccess + spostamentoSuccess + upAndUnderSuccess;
 
-    await addKickingSession({
+    const payload = {
       playerId: kicker.id,
       playerName: kicker.name,
-      date: new Date().toISOString().slice(0, 10),
+      date: editingKick ? editingKick.date : new Date().toISOString().slice(0, 10),
       durationMin,
       totalKicks,
       successfulKicks,
@@ -81,10 +125,15 @@ export const KickingSpecialistsView: React.FC = () => {
         sinistra: zoneSinistra
       },
       notes: notes.trim() ? notes : undefined
-    });
+    };
 
-    setShowModal(false);
-    setNotes('');
+    if (editingKick) {
+      await updateKickingSession({ ...payload, id: editingKick.id });
+    } else {
+      await addKickingSession(payload);
+    }
+
+    closeKickModal();
   };
 
   const handleExportCsv = () => {
@@ -140,7 +189,7 @@ export const KickingSpecialistsView: React.FC = () => {
           </button>
           <button
             id="btn-add-kicking-session"
-            onClick={() => setShowModal(true)}
+            onClick={() => { resetKickForm(); setEditingKick(null); setShowModal(true); }}
             className="px-4 py-2.5 bg-[#D4AF37] hover:bg-[#C09F30] text-black text-xs font-bold rounded-lg shadow-md flex items-center gap-2 transition-all active:scale-95"
           >
             <Plus className="w-4 h-4" />
@@ -169,14 +218,23 @@ export const KickingSpecialistsView: React.FC = () => {
                 <div className="text-right">
                   <div className="flex items-center gap-1.5 justify-end">
                     <span className="text-2xl font-black text-[#D4AF37]">{overallPct}%</span>
-                    {canDeleteKick(ks) && (
-                      <button
-                        onClick={() => handleDeleteKick(ks)}
-                        className="p-1 text-gray-500 hover:text-red-400 hover:bg-[#1D1D21] rounded-lg"
-                        title="Elimina sessione"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                    {canEditKick(ks) && (
+                      <>
+                        <button
+                          onClick={() => startEditKick(ks)}
+                          className="p-1 text-gray-500 hover:text-[#D4AF37] hover:bg-[#1D1D21] rounded-lg"
+                          title="Modifica sessione"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteKick(ks)}
+                          className="p-1 text-gray-500 hover:text-red-400 hover:bg-[#1D1D21] rounded-lg"
+                          title="Elimina sessione"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </>
                     )}
                   </div>
                   <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Precisione Totale</p>
@@ -269,9 +327,9 @@ export const KickingSpecialistsView: React.FC = () => {
             <div className="flex items-center justify-between border-b border-[#2A2A2E] pb-3">
               <h3 className="text-[#E0E0E1] font-bold text-base font-serif flex items-center gap-2">
                 <Crosshair className="w-5 h-5 text-[#D4AF37]" />
-                Registra Sessione Calci (45 min)
+                {editingKick ? 'Modifica Sessione Calci' : 'Registra Sessione Calci (45 min)'}
               </h3>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-white p-1">✕</button>
+              <button onClick={closeKickModal} className="text-gray-400 hover:text-white p-1">✕</button>
             </div>
 
             <form onSubmit={handleCreateKicking} className="space-y-4 text-xs">
@@ -392,7 +450,7 @@ export const KickingSpecialistsView: React.FC = () => {
               <div className="flex justify-end gap-2 pt-2 border-t border-[#2A2A2E]">
                 <button
                   type="button"
-                  onClick={() => setShowModal(false)}
+                  onClick={closeKickModal}
                   className="px-4 py-2 bg-[#1D1D21] hover:bg-[#26262B] text-gray-300 font-semibold rounded-lg border border-[#2A2A2E]"
                 >
                   Annulla
@@ -402,7 +460,7 @@ export const KickingSpecialistsView: React.FC = () => {
                   disabled={isSyncing}
                   className="px-4 py-2 bg-[#D4AF37] hover:bg-[#C09F30] text-black font-bold rounded-lg shadow-md transition-all active:scale-95"
                 >
-                  Salva Statistiche Calci
+                  {editingKick ? 'Salva Modifiche' : 'Salva Statistiche Calci'}
                 </button>
               </div>
 

@@ -22,6 +22,7 @@ import {
   Edit3,
   FileSpreadsheet,
   ChevronRight,
+  ChevronLeft,
   ShieldAlert,
   Info,
   Lock,
@@ -37,6 +38,16 @@ const getMondayOfWeek = (dateStr: string): Date => {
   d.setDate(d.getDate() + diffToMonday);
   return d;
 };
+
+// Sunday (start) of the week containing the given YYYY-MM-DD date — the
+// attendance matrix groups sessions week-by-week starting on Sunday.
+const getSundayOfWeek = (dateStr: string): Date => {
+  const d = new Date(`${dateStr}T00:00:00`);
+  d.setDate(d.getDate() - d.getDay());
+  return d;
+};
+
+const toDateKey = (d: Date): string => d.toISOString().slice(0, 10);
 
 const formatItDate = (d: Date): string => d.toLocaleDateString('it-IT', { day: '2-digit', month: 'long' });
 
@@ -59,6 +70,7 @@ export const AttendanceMatrixView: React.FC = () => {
   const [selectedDepartment, setSelectedDepartment] = useState<'all' | 'avanti' | 'trequarti'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSessionId, setSelectedSessionId] = useState<string>(sessions[0]?.id || '');
+  const [weekStart, setWeekStart] = useState<Date>(() => getSundayOfWeek(new Date().toISOString().slice(0, 10)));
   const [editingCell, setEditingCell] = useState<{
     recordId: string;
     sessionId: string;
@@ -85,10 +97,40 @@ export const AttendanceMatrixView: React.FC = () => {
     });
   }, [players, selectedDepartment, searchQuery]);
 
-  // Active or completed sessions for columns
-  const activeSessions = useMemo(() => {
+  // All sessions sorted chronologically (used for CSV export and bulk-mark selector)
+  const allSessionsSorted = useMemo(() => {
     return [...sessions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [sessions]);
+
+  const weekEnd = useMemo(() => {
+    const d = new Date(weekStart);
+    d.setDate(d.getDate() + 6);
+    return d;
+  }, [weekStart]);
+
+  // Sessions of the selected week only (Sunday to Saturday) — the columns shown in the matrix
+  const weekSessions = useMemo(() => {
+    return allSessionsSorted.filter(s => {
+      const d = new Date(`${s.date}T00:00:00`);
+      return d >= weekStart && d <= weekEnd;
+    });
+  }, [allSessionsSorted, weekStart, weekEnd]);
+
+  const goToPrevWeek = () => setWeekStart(prev => {
+    const d = new Date(prev);
+    d.setDate(d.getDate() - 7);
+    return d;
+  });
+
+  const goToNextWeek = () => setWeekStart(prev => {
+    const d = new Date(prev);
+    d.setDate(d.getDate() + 7);
+    return d;
+  });
+
+  const goToCurrentWeek = () => setWeekStart(getSundayOfWeek(new Date().toISOString().slice(0, 10)));
+
+  const isCurrentWeek = toDateKey(weekStart) === toDateKey(getSundayOfWeek(new Date().toISOString().slice(0, 10)));
 
   // Calculate overall attendance stats
   const stats = useMemo(() => {
@@ -234,10 +276,10 @@ export const AttendanceMatrixView: React.FC = () => {
   };
 
   const exportAttendanceCSV = () => {
-    const headers = ['Numero', 'Nome Atleta', 'Ruolo', 'Reparto', 'Presenze %', ...activeSessions.map(s => `${s.date} - ${s.title}`)];
+    const headers = ['Numero', 'Nome Atleta', 'Ruolo', 'Reparto', 'Presenze %', ...allSessionsSorted.map(s => `${s.date} - ${s.title}`)];
     const rows = filteredPlayers.map(p => {
       const pct = getPlayerPresencePct(p.id);
-      const sessionValues = activeSessions.map(s => {
+      const sessionValues = allSessionsSorted.map(s => {
         const rec = getRecord(s.id, p.id);
         return rec ? rec.status.toUpperCase() : 'N/A';
       });
@@ -415,7 +457,7 @@ export const AttendanceMatrixView: React.FC = () => {
                   onChange={(e) => setSelectedSessionId(e.target.value)}
                   className="bg-[#1D1D21] text-[#E0E0E1] text-xs px-3 py-2 rounded-lg border border-[#2A2A2E] focus:outline-none focus:border-[#D4AF37]"
                 >
-                  {activeSessions.map(s => (
+                  {allSessionsSorted.map(s => (
                     <option key={s.id} value={s.id}>
                       {s.date.slice(5)} - {s.title}
                     </option>
@@ -482,6 +524,49 @@ export const AttendanceMatrixView: React.FC = () => {
         </p>
       </div>
 
+      {/* Weekly Navigation */}
+      <div className="bg-[#121214] border border-[#2A2A2E] rounded-xl p-4 shadow-xl flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <button
+            id="btn-prev-week"
+            onClick={goToPrevWeek}
+            className="p-2 bg-[#1D1D21] hover:bg-[#26262B] text-gray-300 hover:text-[#D4AF37] rounded-lg border border-[#2A2A2E] transition-colors"
+            title="Settimana precedente"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+
+          <div className="text-center px-2 min-w-[220px]">
+            <p className="text-sm font-bold text-[#E0E0E1] flex items-center gap-1.5 justify-center">
+              <CalendarClock className="w-4 h-4 text-[#D4AF37]" />
+              {formatItDate(weekStart)} – {formatItDate(weekEnd)}
+            </p>
+            <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-0.5">
+              Settimana da Domenica a Sabato · {weekSessions.length} {weekSessions.length === 1 ? 'sessione' : 'sessioni'}
+            </p>
+          </div>
+
+          <button
+            id="btn-next-week"
+            onClick={goToNextWeek}
+            className="p-2 bg-[#1D1D21] hover:bg-[#26262B] text-gray-300 hover:text-[#D4AF37] rounded-lg border border-[#2A2A2E] transition-colors"
+            title="Settimana successiva"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+
+        {!isCurrentWeek && (
+          <button
+            id="btn-current-week"
+            onClick={goToCurrentWeek}
+            className="px-3 py-1.5 bg-[#1D1D21] hover:bg-[#26262B] text-xs font-semibold text-[#D4AF37] rounded-lg border border-[#2A2A2E] transition-colors"
+          >
+            Settimana Corrente
+          </button>
+        )}
+      </div>
+
       {/* Main Interactive Matrix Table */}
       <div className="bg-[#121214] border border-[#2A2A2E] rounded-xl shadow-2xl overflow-hidden">
         <div className="overflow-x-auto max-h-[700px] scrollbar-thin">
@@ -492,14 +577,14 @@ export const AttendanceMatrixView: React.FC = () => {
                 <th className="py-3.5 px-4 text-xs font-bold text-gray-300 uppercase tracking-widest sticky left-0 z-30 bg-[#0A0A0B] border-r border-[#2A2A2E] min-w-[250px] sm:min-w-[280px]">
                   Giocatrice Rosa ({filteredPlayers.length})
                 </th>
-                
+
                 {/* Presence Pct Column */}
                 <th className="py-3.5 px-3 text-xs font-bold text-center text-gray-300 uppercase tracking-widest border-r border-[#2A2A2E] min-w-[90px]">
                   Presenze %
                 </th>
 
                 {/* Session Columns */}
-                {activeSessions.map(session => (
+                {weekSessions.map(session => (
                   <th key={session.id} className="py-3 px-3 text-xs font-semibold text-gray-200 border-r border-[#2A2A2E] min-w-[120px] text-center">
                     <div className="font-bold text-[#E0E0E1] text-xs">{session.date.slice(5)}</div>
                     <div className="text-[10px] text-gray-400 truncate max-w-[110px]">{session.title}</div>
@@ -568,7 +653,7 @@ export const AttendanceMatrixView: React.FC = () => {
                     </td>
 
                     {/* Session Presence Cells */}
-                    {activeSessions.map(session => {
+                    {weekSessions.map(session => {
                       const record = getRecord(session.id, player.id);
                       const status: AttendanceStatus | undefined = record?.status;
 
@@ -598,9 +683,18 @@ export const AttendanceMatrixView: React.FC = () => {
 
               {filteredPlayers.length === 0 && (
                 <tr>
-                  <td colSpan={activeSessions.length + 2} className="py-12 text-center text-gray-400">
+                  <td colSpan={weekSessions.length + 2} className="py-12 text-center text-gray-400">
                     <p className="text-[#E0E0E1] font-bold text-sm font-serif">Nessuna atleta trovata</p>
                     <p className="text-xs text-gray-500 mt-1">Aggiungi le atlete alla rosa per visualizzare e compilare il foglio presenze.</p>
+                  </td>
+                </tr>
+              )}
+
+              {filteredPlayers.length > 0 && weekSessions.length === 0 && (
+                <tr>
+                  <td colSpan={2} className="py-12 text-center text-gray-400 sticky left-0 bg-[#121214]">
+                    <p className="text-[#E0E0E1] font-bold text-sm font-serif">Nessuna sessione in questa settimana</p>
+                    <p className="text-xs text-gray-500 mt-1">Usa le frecce per cambiare settimana o programma un allenamento.</p>
                   </td>
                 </tr>
               )}
