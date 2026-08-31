@@ -46,6 +46,10 @@ export const AttendanceMatrixView: React.FC = () => {
 
   const [selfDeclareCell, setSelfDeclareCell] = useState<{
     recordId: string;
+    sessionId: string;
+    playerId: string;
+    playerName: string;
+    jerseyNumber?: number;
     sessionTitle: string;
     sessionDate: string;
     currentStatus: AttendanceStatus;
@@ -57,7 +61,11 @@ export const AttendanceMatrixView: React.FC = () => {
   const [selectedSessionId, setSelectedSessionId] = useState<string>(sessions[0]?.id || '');
   const [editingCell, setEditingCell] = useState<{
     recordId: string;
+    sessionId: string;
+    sessionDate: string;
+    playerId: string;
     playerName: string;
+    jerseyNumber?: number;
     sessionTitle: string;
     currentStatus: AttendanceStatus;
     notes: string;
@@ -107,7 +115,7 @@ export const AttendanceMatrixView: React.FC = () => {
   // Helper for single player presence percentage
   const getPlayerPresencePct = (playerId: string) => {
     const playerAtts = attendances.filter(a => a.playerId === playerId);
-    if (playerAtts.length === 0) return 100;
+    if (playerAtts.length === 0) return 0;
     const presentCount = playerAtts.filter(a => a.status === 'present' || a.status === 'late').length;
     return Math.round((presentCount / playerAtts.length) * 100);
   };
@@ -116,7 +124,7 @@ export const AttendanceMatrixView: React.FC = () => {
     return attendances.find(a => a.sessionId === sessionId && a.playerId === playerId);
   };
 
-  const renderStatusBadge = (status: AttendanceStatus, isClickable = true) => {
+  const renderStatusBadge = (status: AttendanceStatus | undefined, isClickable = true) => {
     switch (status) {
       case 'present':
         return (
@@ -163,13 +171,19 @@ export const AttendanceMatrixView: React.FC = () => {
     !isStaff && currentUser?.id === player.id && session.status === 'scheduled' && attendanceWindowOpen;
 
   const handleCellClick = (record: AttendanceRecord | undefined, player: UserProfile, session: TrainingSession) => {
+    // Default suggerito solo per precompilare il form di modifica: non riflette
+    // uno stato reale finché staff/atleta non salvano esplicitamente.
     const currentStatus = record ? record.status : (player.status === 'injured' ? 'injured_diff' : 'present');
     const recId = record ? record.id : `att-${session.id}-${player.id}`;
 
     if (isStaff) {
       setEditingCell({
         recordId: recId,
+        sessionId: session.id,
+        sessionDate: session.date,
+        playerId: player.id,
         playerName: player.name,
+        jerseyNumber: player.jerseyNumber,
         sessionTitle: session.title,
         currentStatus,
         notes: record?.staffNotes || '',
@@ -181,6 +195,10 @@ export const AttendanceMatrixView: React.FC = () => {
     if (canSelfDeclare(player, session)) {
       setSelfDeclareCell({
         recordId: recId,
+        sessionId: session.id,
+        playerId: player.id,
+        playerName: player.name,
+        jerseyNumber: player.jerseyNumber,
         sessionTitle: session.title,
         sessionDate: session.date,
         currentStatus: currentStatus === 'late' || currentStatus === 'injured_diff' ? 'present' : currentStatus,
@@ -191,13 +209,27 @@ export const AttendanceMatrixView: React.FC = () => {
 
   const saveCellEdit = async () => {
     if (!editingCell) return;
-    await updateAttendance(editingCell.recordId, editingCell.currentStatus, editingCell.notes, editingCell.lateMin);
+    await updateAttendance(editingCell.recordId, editingCell.currentStatus, editingCell.notes, editingCell.lateMin, {
+      sessionId: editingCell.sessionId,
+      sessionDate: editingCell.sessionDate,
+      playerId: editingCell.playerId,
+      playerName: editingCell.playerName,
+      jerseyNumber: editingCell.jerseyNumber,
+      recordedBy: currentUser?.name || 'Staff Tecnico'
+    });
     setEditingCell(null);
   };
 
   const saveSelfDeclare = async () => {
     if (!selfDeclareCell) return;
-    await updateAttendance(selfDeclareCell.recordId, selfDeclareCell.currentStatus, selfDeclareCell.note);
+    await updateAttendance(selfDeclareCell.recordId, selfDeclareCell.currentStatus, selfDeclareCell.note, undefined, {
+      sessionId: selfDeclareCell.sessionId,
+      sessionDate: selfDeclareCell.sessionDate,
+      playerId: selfDeclareCell.playerId,
+      playerName: selfDeclareCell.playerName,
+      jerseyNumber: selfDeclareCell.jerseyNumber,
+      recordedBy: selfDeclareCell.playerName
+    });
     setSelfDeclareCell(null);
   };
 
@@ -538,9 +570,7 @@ export const AttendanceMatrixView: React.FC = () => {
                     {/* Session Presence Cells */}
                     {activeSessions.map(session => {
                       const record = getRecord(session.id, player.id);
-                      const status: AttendanceStatus = record 
-                        ? record.status 
-                        : (player.status === 'injured' ? 'injured_diff' : 'present');
+                      const status: AttendanceStatus | undefined = record?.status;
 
                       const selfDeclareEligible = canSelfDeclare(player, session);
 

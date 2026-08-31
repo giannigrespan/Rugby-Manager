@@ -14,14 +14,24 @@ import {
   Calendar,
   Activity,
   ShieldCheck,
-  Download
+  Download,
+  Trash2
 } from 'lucide-react';
 
 export const IndividualTrainingsView: React.FC = () => {
-  const { players, individualLogs, addIndividualLog, isSyncing } = useData();
+  const { players, individualLogs, addIndividualLog, deleteIndividualLog, isSyncing } = useData();
   const { currentUser } = useAuth();
   const isPlayer = currentUser?.role === 'player';
+  const isStaff = !isPlayer;
   const defaultPlayerId = isPlayer ? currentUser.id : players[0]?.id || '';
+
+  const canDeleteLog = (log: IndividualTrainingLog) => isStaff || log.playerId === currentUser?.id;
+
+  const handleDeleteLog = (log: IndividualTrainingLog) => {
+    if (window.confirm(`Eliminare la seduta "${log.title}" di ${log.playerName}?`)) {
+      deleteIndividualLog(log.id);
+    }
+  };
 
   const [showModal, setShowModal] = useState(false);
   const [selectedPlayerId, setSelectedPlayerId] = useState(defaultPlayerId);
@@ -129,9 +139,20 @@ export const IndividualTrainingsView: React.FC = () => {
               </div>
 
               <div className="text-right">
-                <span className="text-sm font-black text-[#D4AF37] bg-[#1D1D21] border border-[#2A2A2E] px-2 py-0.5 rounded-lg">
-                  RPE {log.perceivedEffort}/10
-                </span>
+                <div className="flex items-center gap-1.5 justify-end">
+                  <span className="text-sm font-black text-[#D4AF37] bg-[#1D1D21] border border-[#2A2A2E] px-2 py-0.5 rounded-lg">
+                    RPE {log.perceivedEffort}/10
+                  </span>
+                  {canDeleteLog(log) && (
+                    <button
+                      onClick={() => handleDeleteLog(log)}
+                      className="p-1 text-gray-500 hover:text-red-400 hover:bg-[#1D1D21] rounded-lg"
+                      title="Elimina seduta"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
                 <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1 justify-end">
                   <Clock className="w-3 h-3 text-gray-500" />
                   {log.durationMin} min

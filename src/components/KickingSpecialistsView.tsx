@@ -14,12 +14,22 @@ import {
   Flame,
   CheckCircle,
   Percent,
-  Download
+  Download,
+  Trash2
 } from 'lucide-react';
 
 export const KickingSpecialistsView: React.FC = () => {
-  const { players, kickingSessions, addKickingSession, isSyncing } = useData();
+  const { players, kickingSessions, addKickingSession, deleteKickingSession, isSyncing } = useData();
   const { currentUser } = useAuth();
+  const isStaff = currentUser?.role !== 'player';
+
+  const canDeleteKick = (ks: KickingSession) => isStaff || ks.playerId === currentUser?.id;
+
+  const handleDeleteKick = (ks: KickingSession) => {
+    if (window.confirm(`Eliminare la sessione calci di ${ks.playerName} del ${ks.date}?`)) {
+      deleteKickingSession(ks.id);
+    }
+  };
 
   const [showModal, setShowModal] = useState(false);
   const kickerCandidates = players.filter(p => 
@@ -157,7 +167,18 @@ export const KickingSpecialistsView: React.FC = () => {
                   </p>
                 </div>
                 <div className="text-right">
-                  <span className="text-2xl font-black text-[#D4AF37]">{overallPct}%</span>
+                  <div className="flex items-center gap-1.5 justify-end">
+                    <span className="text-2xl font-black text-[#D4AF37]">{overallPct}%</span>
+                    {canDeleteKick(ks) && (
+                      <button
+                        onClick={() => handleDeleteKick(ks)}
+                        className="p-1 text-gray-500 hover:text-red-400 hover:bg-[#1D1D21] rounded-lg"
+                        title="Elimina sessione"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                   <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Precisione Totale</p>
                 </div>
               </div>

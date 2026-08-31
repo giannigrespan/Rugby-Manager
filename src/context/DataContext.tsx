@@ -31,7 +31,13 @@ interface DataContextType {
 
   // Actions
   setAttendanceWindowOpen: (isOpen: boolean, updatedBy?: string) => Promise<void>;
-  updateAttendance: (recordId: string, status: AttendanceRecord['status'], notes?: string, lateMin?: number) => Promise<void>;
+  updateAttendance: (
+    recordId: string,
+    status: AttendanceRecord['status'],
+    notes?: string,
+    lateMin?: number,
+    context?: { sessionId: string; sessionDate: string; playerId: string; playerName: string; jerseyNumber?: number; recordedBy?: string }
+  ) => Promise<void>;
   bulkMarkSessionAttendance: (sessionId: string, status: AttendanceRecord['status'], department?: string) => Promise<void>;
   addOrUpdateSession: (session: TrainingSession) => Promise<void>;
   deleteSession: (sessionId: string) => Promise<void>;
@@ -46,7 +52,9 @@ interface DataContextType {
   toggleTaskCompletion: (taskId: string, playerId: string, completed: boolean, note?: string, progress?: number) => Promise<void>;
   deleteTask: (taskId: string) => Promise<void>;
   addKickingSession: (session: Omit<KickingSession, 'id'>) => Promise<void>;
+  deleteKickingSession: (id: string) => Promise<void>;
   addIndividualLog: (log: Omit<IndividualTrainingLog, 'id'>) => Promise<void>;
+  deleteIndividualLog: (id: string) => Promise<void>;
   updatePlayer: (player: UserProfile) => Promise<void>;
   addPlayer: (player: Omit<UserProfile, 'id' | 'createdAt'>) => Promise<void>;
   deletePlayer: (playerId: string) => Promise<void>;
@@ -256,34 +264,54 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (error) console.warn('Attendance window update error:', error);
   };
 
-  const updateAttendance = async (recordId: string, status: AttendanceRecord['status'], notes?: string, lateMin?: number) => {
+  const updateAttendance = async (
+    recordId: string,
+    status: AttendanceRecord['status'],
+    notes?: string,
+    lateMin?: number,
+    context?: { sessionId: string; sessionDate: string; playerId: string; playerName: string; jerseyNumber?: number; recordedBy?: string }
+  ) => {
     setIsSyncing(true);
-    setAttendances(prev => prev.map(rec => {
-      if (rec.id === recordId) {
-        return {
-          ...rec,
+
+    // The record may not exist yet (e.g. no one has recorded attendance for
+    // this player/session pair before) — in that case create it instead of
+    // silently doing nothing, using the context supplied by the caller.
+    const existing = attendances.find(a => a.id === recordId);
+    const updatedRecord: AttendanceRecord = existing
+      ? {
+          ...existing,
           status,
-          staffNotes: notes !== undefined ? notes : rec.staffNotes,
+          staffNotes: notes !== undefined ? notes : existing.staffNotes,
           lateMinutes: lateMin !== undefined ? lateMin : (status === 'late' ? 15 : 0),
           updatedAt: new Date().toISOString()
+        }
+      : {
+          id: recordId,
+          sessionId: context?.sessionId || '',
+          sessionDate: context?.sessionDate || '',
+          playerId: context?.playerId || '',
+          playerName: context?.playerName || '',
+          jerseyNumber: context?.jerseyNumber,
+          status,
+          lateMinutes: lateMin !== undefined ? lateMin : (status === 'late' ? 15 : 0),
+          staffNotes: notes || '',
+          recordedBy: context?.recordedBy || 'Staff Tecnico',
+          updatedAt: new Date().toISOString()
         };
+
+    setAttendances(prev => {
+      const idx = prev.findIndex(rec => rec.id === recordId);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = updatedRecord;
+        return next;
       }
-      return rec;
-    }));
+      return [...prev, updatedRecord];
+    });
 
     try {
-      const target = attendances.find(a => a.id === recordId);
-      if (target) {
-        const updated = {
-          ...target,
-          status,
-          staffNotes: notes !== undefined ? notes : target.staffNotes,
-          lateMinutes: lateMin !== undefined ? lateMin : (status === 'late' ? 15 : 0),
-          updatedAt: new Date().toISOString()
-        };
-        const { error } = await supabase.from('attendances').upsert(updated);
-        if (error) throw error;
-      }
+      const { error } = await supabase.from('attendances').upsert(updatedRecord);
+      if (error) throw error;
     } catch (e) {
       console.warn('Attendance cloud write error, stored locally:', e);
     } finally {
@@ -353,27 +381,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return [session, ...prev];
     });
 
-    // Ensure attendance records exist for this session
-    setAttendances(prev => {
-      const existingForSession = prev.filter(a => a.sessionId === session.id);
-      if (existingForSession.length === 0) {
-        const generated: AttendanceRecord[] = players.map(p => ({
-          id: `att-${session.id}-${p.id}`,
-          sessionId: session.id,
-          sessionDate: session.date,
-          playerId: p.id,
-          playerName: p.name,
-          jerseyNumber: p.jerseyNumber,
-          status: p.status === 'injured' ? 'injured_diff' : 'present',
-          lateMinutes: 0,
-          staffNotes: p.status === 'injured' ? 'Infortunata in recupero' : '',
-          recordedBy: 'Staff Tecnico',
-          updatedAt: new Date().toISOString()
-        }));
-        return [...prev, ...generated];
-      }
-      return prev;
-    });
+    // Le presenze NON vengono più pre-generate come "tutte presenti": ogni
+    // atleta risulta senza stato finché non lo dichiara lei stessa (finestra
+    // di autodichiarazione) o lo staff non lo registra manualmente.
 
     // Send push notification if scheduled
     if (session.status === 'scheduled') {
@@ -619,6 +629,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const deleteKickingSession = async (id: string) => {
+    setKickingSessions(prev => prev.filter(k => k.id !== id));
+    try {
+      const { error } = await supabase.from('kicking_sessions').delete().eq('id', id);
+      if (error) throw error;
+    } catch (e) {
+      console.warn('Delete kicking session cloud error:', e);
+    }
+  };
+
   const addIndividualLog = async (logData: Omit<IndividualTrainingLog, 'id'>) => {
     const newId = `ind-${Date.now()}`;
     const newLog: IndividualTrainingLog = { ...logData, id: newId };
@@ -628,6 +648,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) throw error;
     } catch (e) {
       console.warn('Ind log write error:', e);
+    }
+  };
+
+  const deleteIndividualLog = async (id: string) => {
+    setIndividualLogs(prev => prev.filter(l => l.id !== id));
+    try {
+      const { error } = await supabase.from('individual_logs').delete().eq('id', id);
+      if (error) throw error;
+    } catch (e) {
+      console.warn('Delete individual log cloud error:', e);
     }
   };
 
@@ -885,7 +915,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       toggleTaskCompletion,
       deleteTask,
       addKickingSession,
+      deleteKickingSession,
       addIndividualLog,
+      deleteIndividualLog,
       updatePlayer,
       addPlayer,
       deletePlayer,
