@@ -171,6 +171,13 @@ const ALL_ROLES_CONFIG: RoleConfigItem[] = [
     shortLabel: 'Atleta',
     subtitle: 'Compilazione RPE, log individuali, compiti e visualizzazione',
     badgeColor: 'bg-purple-500/20 text-purple-400 border-purple-500/40'
+  },
+  {
+    role: 'programmatore',
+    label: 'Programmatore / Sviluppo App',
+    shortLabel: 'Programmatore',
+    subtitle: 'Sviluppo, manutenzione e supporto tecnico della piattaforma',
+    badgeColor: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/40'
   }
 ];
 
@@ -810,6 +817,7 @@ export const UserCredentialsAdminView: React.FC = () => {
                                     <option value="athletic_trainer">Preparatore Atletico</option>
                                     <option value="physiotherapist">Fisioterapista</option>
                                     <option value="direttore_tecnico">Direttore Tecnico / Dirigente</option>
+                                    <option value="programmatore">Programmatore</option>
                                   </select>
                                 ) : (
                                   <span className="inline-block text-[10px] text-gray-400 mt-0.5">

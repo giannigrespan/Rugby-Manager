@@ -4,15 +4,15 @@ export const INITIAL_STAFF: UserProfile[] = [
   {
     id: 'staff-gianni-grespan',
     email: 'gianni.grespan@gmail.com',
-    name: 'Gianni Grespan (Admin & Head Coach)',
-    role: 'head_coach',
+    name: 'Gianni Grespan (Admin & Programmatore)',
+    role: 'programmatore',
     isAdmin: true,
     position: 'Staff Tecnico',
     department: 'staff',
     phone: '+39 340 0000000',
     status: 'fit',
     createdAt: '2026-01-01T08:00:00Z',
-    notes: 'Responsabile e Amministratore Rugby Villorba'
+    notes: 'Responsabile Tecnico e Sviluppatore Rugby Villorba'
   }
 ];
 
