@@ -113,7 +113,7 @@ const AppContent: React.FC = () => {
       <>
         <LandingView
           onOpenAuth={() => setIsAuthOpen(true)}
-          onEnterAsGuest={() => navigateToTab('presenze')}
+          onEnterWorkspace={() => navigateToTab('presenze')}
           onOpenPrivacy={() => navigateToTab('privacy')}
           onOpenTerms={() => navigateToTab('terms')}
         />

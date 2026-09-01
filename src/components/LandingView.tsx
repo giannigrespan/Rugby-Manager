@@ -5,14 +5,14 @@ import { useAuth } from '../context/AuthContext';
 
 interface LandingViewProps {
   onOpenAuth: () => void;
-  onEnterAsGuest: () => void;
+  onEnterWorkspace: () => void;
   onOpenPrivacy: () => void;
   onOpenTerms: () => void;
 }
 
 export const LandingView: React.FC<LandingViewProps> = ({
   onOpenAuth,
-  onEnterAsGuest,
+  onEnterWorkspace,
   onOpenPrivacy,
   onOpenTerms
 }) => {
@@ -44,38 +44,27 @@ export const LandingView: React.FC<LandingViewProps> = ({
           {currentUser ? (
             <button
               id="btn-landing-enter"
-              onClick={onEnterAsGuest}
+              onClick={onEnterWorkspace}
               className="w-full py-3 bg-[#D4AF37] hover:bg-[#C09F30] text-black text-sm font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-[#D4AF37]/10 transition-all active:scale-95"
             >
               <span>Entra nella piattaforma</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           ) : (
-            <>
-              <button
-                id="btn-landing-login"
-                onClick={onOpenAuth}
-                className="w-full py-3 bg-[#D4AF37] hover:bg-[#C09F30] text-black text-sm font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-[#D4AF37]/10 transition-all active:scale-95"
-              >
-                <LogIn className="w-4 h-4" />
-                <span>Accedi o Registrati</span>
-              </button>
-
-              <button
-                id="btn-landing-guest"
-                onClick={onEnterAsGuest}
-                className="w-full py-3 bg-[#1D1D21] hover:bg-[#26262B] text-gray-300 hover:text-white text-sm font-semibold rounded-xl border border-[#2A2A2E] flex items-center justify-center gap-2 transition-colors"
-              >
-                <span>Continua come ospite</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </>
+            <button
+              id="btn-landing-login"
+              onClick={onOpenAuth}
+              className="w-full py-3 bg-[#D4AF37] hover:bg-[#C09F30] text-black text-sm font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-[#D4AF37]/10 transition-all active:scale-95"
+            >
+              <LogIn className="w-4 h-4" />
+              <span>Accedi o Registrati</span>
+            </button>
           )}
         </div>
 
         <div className="mt-6 flex items-center gap-2 text-[11px] text-gray-500">
           <ShieldCheck className="w-3.5 h-3.5 text-[#D4AF37]" />
-          <span>Accesso riservato allo staff tecnico e alla rosa atlete registrate</span>
+          <span>Accesso riservato esclusivamente allo staff tecnico e alla rosa atlete autorizzate</span>
         </div>
       </main>
 
