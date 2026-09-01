@@ -52,6 +52,16 @@ const AppContent: React.FC = () => {
     }
   }, [currentUser, activeTab]);
 
+  // Access is authorized-only: without a logged-in user, the only reachable
+  // screens are the landing page and the public legal pages (e.g. via a
+  // shared ?page=privacy link) — anything else bounces back to the landing
+  // page instead of exposing the full app shell/sidebar to a guest.
+  useEffect(() => {
+    if (!currentUser && activeTab !== 'home' && activeTab !== 'privacy' && activeTab !== 'terms') {
+      setActiveTab('home');
+    }
+  }, [currentUser, activeTab]);
+
   // Handle URL query parameters or hash for direct OAuth verification links (e.g. ?page=privacy or #/privacy)
   useEffect(() => {
     const handleUrlRoute = () => {
@@ -122,6 +132,20 @@ const AppContent: React.FC = () => {
           onClose={() => setIsAuthOpen(false)}
         />
       </>
+    );
+  }
+
+  // Public legal pages stay reachable without logging in (e.g. shared
+  // ?page=privacy links), but a guest gets a bare page instead of the full
+  // authenticated app shell/sidebar.
+  if (!currentUser && (activeTab === 'privacy' || activeTab === 'terms')) {
+    return (
+      <div className="min-h-screen bg-[#0A0A0B] text-[#E0E0E1] flex flex-col font-sans">
+        <main className="flex-1 p-3 sm:p-5 lg:p-6 max-w-[1700px] w-full mx-auto">
+          {activeTab === 'privacy' && <PrivacyPolicyView onBack={() => navigateToTab('home')} />}
+          {activeTab === 'terms' && <TermsOfServiceView onBack={() => navigateToTab('home')} />}
+        </main>
+      </div>
     );
   }
 
