@@ -488,8 +488,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (s.id === staffId) {
         const updated = {
           ...s,
-          role,
-          isAdmin: role === 'direttore_tecnico' ? true : s.isAdmin
+          role
         };
         targetMember = updated;
         return updated;
@@ -500,8 +499,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (currentUser?.id === staffId) {
       const updatedUser = {
         ...currentUser,
-        role,
-        isAdmin: role === 'direttore_tecnico' ? true : currentUser.isAdmin
+        role
       };
       setCurrentUser(updatedUser);
       localStorage.setItem('rugby_current_user', JSON.stringify(updatedUser));
