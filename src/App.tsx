@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import { DataProvider, useData } from './context/DataContext';
 import { Sidebar, TabType } from './components/Sidebar';
+import { LandingView } from './components/LandingView';
 import { AttendanceMatrixView } from './components/AttendanceMatrixView';
 import { RpeAndFocusView } from './components/RpeAndFocusView';
 import { InjuryReportView } from './components/InjuryReportView';
@@ -22,7 +23,7 @@ import { Menu, Bell, LogIn, CalendarSync, Shield, FileText } from 'lucide-react'
 import { useAuth, canAccessCredentialsPanel } from './context/AuthContext';
 
 const AppContent: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<TabType>('presenze');
+  const [activeTab, setActiveTab] = useState<TabType>('home');
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
@@ -43,6 +44,23 @@ const AppContent: React.FC = () => {
       setIsAuthOpen(true);
     }
   }, [authError]);
+
+  // After a successful login from the landing page, move straight into the workspace.
+  useEffect(() => {
+    if (currentUser && activeTab === 'home') {
+      setActiveTab('presenze');
+    }
+  }, [currentUser, activeTab]);
+
+  // Access is authorized-only: without a logged-in user, the only reachable
+  // screens are the landing page and the public legal pages (e.g. via a
+  // shared ?page=privacy link) — anything else bounces back to the landing
+  // page instead of exposing the full app shell/sidebar to a guest.
+  useEffect(() => {
+    if (!currentUser && activeTab !== 'home' && activeTab !== 'privacy' && activeTab !== 'terms') {
+      setActiveTab('home');
+    }
+  }, [currentUser, activeTab]);
 
   // Handle URL query parameters or hash for direct OAuth verification links (e.g. ?page=privacy or #/privacy)
   useEffect(() => {
@@ -83,6 +101,7 @@ const AppContent: React.FC = () => {
 
   const getTabHeading = () => {
     switch (activeTab) {
+      case 'home': return 'Rugby Villorba Team Manager';
       case 'presenze': return '1. Matrice Presenze & Modifiche Staff';
       case 'rpe_focus': return '2. Monitoraggio RPE & Focus Gara';
       case 'infortuni': return '3. Report Fastidi & Infortuni / HIA';
@@ -99,9 +118,40 @@ const AppContent: React.FC = () => {
     }
   };
 
+  if (activeTab === 'home') {
+    return (
+      <>
+        <LandingView
+          onOpenAuth={() => setIsAuthOpen(true)}
+          onEnterWorkspace={() => navigateToTab('presenze')}
+          onOpenPrivacy={() => navigateToTab('privacy')}
+          onOpenTerms={() => navigateToTab('terms')}
+        />
+        <AuthModal
+          isOpen={isAuthOpen}
+          onClose={() => setIsAuthOpen(false)}
+        />
+      </>
+    );
+  }
+
+  // Public legal pages stay reachable without logging in (e.g. shared
+  // ?page=privacy links), but a guest gets a bare page instead of the full
+  // authenticated app shell/sidebar.
+  if (!currentUser && (activeTab === 'privacy' || activeTab === 'terms')) {
+    return (
+      <div className="min-h-screen bg-[#0A0A0B] text-[#E0E0E1] flex flex-col font-sans">
+        <main className="flex-1 p-3 sm:p-5 lg:p-6 max-w-[1700px] w-full mx-auto">
+          {activeTab === 'privacy' && <PrivacyPolicyView onBack={() => navigateToTab('home')} />}
+          {activeTab === 'terms' && <TermsOfServiceView onBack={() => navigateToTab('home')} />}
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#0A0A0B] text-[#E0E0E1] flex font-sans selection:bg-[#D4AF37] selection:text-black">
-      
+
       {/* Lateral Sidebar Navigation */}
       <Sidebar
         activeTab={activeTab}
