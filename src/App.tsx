@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import { DataProvider, useData } from './context/DataContext';
 import { Sidebar, TabType } from './components/Sidebar';
+import { LandingView } from './components/LandingView';
 import { AttendanceMatrixView } from './components/AttendanceMatrixView';
 import { RpeAndFocusView } from './components/RpeAndFocusView';
 import { InjuryReportView } from './components/InjuryReportView';
@@ -22,7 +23,7 @@ import { Menu, Bell, LogIn, CalendarSync, Shield, FileText } from 'lucide-react'
 import { useAuth, canAccessCredentialsPanel } from './context/AuthContext';
 
 const AppContent: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<TabType>('presenze');
+  const [activeTab, setActiveTab] = useState<TabType>('home');
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
@@ -43,6 +44,13 @@ const AppContent: React.FC = () => {
       setIsAuthOpen(true);
     }
   }, [authError]);
+
+  // After a successful login from the landing page, move straight into the workspace.
+  useEffect(() => {
+    if (currentUser && activeTab === 'home') {
+      setActiveTab('presenze');
+    }
+  }, [currentUser, activeTab]);
 
   // Handle URL query parameters or hash for direct OAuth verification links (e.g. ?page=privacy or #/privacy)
   useEffect(() => {
@@ -83,6 +91,7 @@ const AppContent: React.FC = () => {
 
   const getTabHeading = () => {
     switch (activeTab) {
+      case 'home': return 'Rugby Villorba Team Manager';
       case 'presenze': return '1. Matrice Presenze & Modifiche Staff';
       case 'rpe_focus': return '2. Monitoraggio RPE & Focus Gara';
       case 'infortuni': return '3. Report Fastidi & Infortuni / HIA';
@@ -99,9 +108,26 @@ const AppContent: React.FC = () => {
     }
   };
 
+  if (activeTab === 'home') {
+    return (
+      <>
+        <LandingView
+          onOpenAuth={() => setIsAuthOpen(true)}
+          onEnterAsGuest={() => navigateToTab('presenze')}
+          onOpenPrivacy={() => navigateToTab('privacy')}
+          onOpenTerms={() => navigateToTab('terms')}
+        />
+        <AuthModal
+          isOpen={isAuthOpen}
+          onClose={() => setIsAuthOpen(false)}
+        />
+      </>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#0A0A0B] text-[#E0E0E1] flex font-sans selection:bg-[#D4AF37] selection:text-black">
-      
+
       {/* Lateral Sidebar Navigation */}
       <Sidebar
         activeTab={activeTab}

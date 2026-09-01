@@ -30,8 +30,9 @@ import {
 
 import { VillorbaLogo, VillorbaHedgehogIcon } from './VillorbaLogo';
 
-export type TabType = 
-  | 'presenze' 
+export type TabType =
+  | 'home'
+  | 'presenze'
   | 'rpe_focus' 
   | 'infortuni' 
   | 'fisioterapia' 
@@ -225,9 +226,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             </div>
           ) : (
-            <div className="min-w-0 flex-1">
+            <button
+              onClick={() => handleSelectTab('home')}
+              className="min-w-0 flex-1 text-left"
+              title="Torna alla pagina iniziale"
+            >
               <VillorbaLogo size="md" colorMode="gold" showSubtitle={true} />
-            </div>
+            </button>
           )}
 
           {/* Close button on mobile */}
