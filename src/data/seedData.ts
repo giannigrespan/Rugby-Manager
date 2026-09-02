@@ -76,7 +76,10 @@ export const INITIAL_PLAYERS: UserProfile[] = [
   { id: 'p-41', email: 'manuela.furlan@rugbyteam.it', name: 'Manuela Furlan', role: 'player', jerseyNumber: 41, position: 'Estremo (15)', department: 'trequarti', phone: '+39 348 101041', birthDate: '1988-06-30', medicalExpiry: '2026-09-15', status: 'fit', createdAt: '2026-01-15' },
   { id: 'p-42', email: 'camilla.sarasso@rugbyteam.it', name: 'Camilla Sarasso', role: 'player', jerseyNumber: 42, position: 'Estremo (15)', department: 'trequarti', phone: '+39 348 101042', birthDate: '2002-05-18', medicalExpiry: '2027-01-25', status: 'fit', createdAt: '2026-01-15' },
   { id: 'p-43', email: 'greta.copat@rugbyteam.it', name: 'Greta Copat', role: 'player', jerseyNumber: 43, position: 'Ala Sinistra (11)', department: 'trequarti', phone: '+39 348 101043', birthDate: '2004-01-14', medicalExpiry: '2027-05-01', status: 'fit', createdAt: '2026-01-15' },
-  { id: 'p-44', email: 'matilde.romano@rugbyteam.it', name: 'Matilde Romano', role: 'player', jerseyNumber: 44, position: 'Tallonatrice (2)', department: 'avanti', phone: '+39 348 101044', birthDate: '2005-02-10', medicalExpiry: '2027-02-14', status: 'fit', createdAt: '2026-01-15' }
+  { id: 'p-44', email: 'matilde.romano@rugbyteam.it', name: 'Matilde Romano', role: 'player', jerseyNumber: 44, position: 'Tallonatrice (2)', department: 'avanti', phone: '+39 348 101044', birthDate: '2005-02-10', medicalExpiry: '2027-02-14', status: 'fit', createdAt: '2026-01-15' },
+
+  // Utente di prova per test visibilità atleta
+  { id: 'p-45', email: 'myus30way@gmail.com', name: 'Toni Beggio', role: 'player', jerseyNumber: 45, position: 'Estremo (15)', department: 'trequarti', status: 'fit', createdAt: '2026-01-15', notes: 'Account di prova per test funzionalità atleta' }
 ];
 
 export const INITIAL_SESSIONS: TrainingSession[] = [
