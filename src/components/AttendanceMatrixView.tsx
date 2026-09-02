@@ -335,8 +335,8 @@ export const AttendanceMatrixView: React.FC = () => {
         )}
       </div>
 
-      {/* Header & Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+      {/* Header & Stats Cards — hidden on mobile to keep the matrix screen lean; full detail stays on tablet/desktop */}
+      <div className="hidden sm:grid sm:grid-cols-3 lg:grid-cols-6 gap-4">
         <div className="bg-[#121214] border border-[#2A2A2E] rounded-xl p-5 shadow-sm">
           <p className="text-xs uppercase tracking-widest text-gray-500 mb-1">Tasso Presenze</p>
           <div className="flex items-baseline gap-2 mt-1">
