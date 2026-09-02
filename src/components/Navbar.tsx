@@ -52,6 +52,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   const activeInjuriesCount = injuries.filter(i => i.status !== 'cleared').length;
   const activePhysioNotesCount = physioNotes.length;
   const unreadNotifsCount = notifications.filter(n => currentUser && !n.readBy.includes(currentUser.id)).length;
+  const isStaff = currentUser?.role !== 'player';
+  const visibleTasksCount = isStaff
+    ? tasks.length
+    : tasks.filter(t => t.assignedToType !== 'individual' || t.assignedPlayerIds.includes(currentUser?.id || '')).length;
   const totalPlayersCount = players.length;
 
   return (
@@ -308,9 +312,9 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <span className="text-base leading-none">🎯</span>
             <span>9. Assegna Compiti</span>
-            {tasks.length > 0 && (
+            {visibleTasksCount > 0 && (
               <span className="px-1.5 py-0.2 text-[10px] bg-[#D4AF37]/20 text-[#D4AF37] rounded-full border border-[#D4AF37]/40 font-bold">
-                {tasks.length}
+                {visibleTasksCount}
               </span>
             )}
           </button>

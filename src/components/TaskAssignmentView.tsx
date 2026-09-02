@@ -20,6 +20,11 @@ export const TaskAssignmentView: React.FC = () => {
   const isStaff = currentUser?.role !== 'player';
   const currentUserId = currentUser?.id || 'p-16';
 
+  // I compiti individuali devono essere visibili solo all'atleta assegnato e allo staff.
+  const visibleTasks = isStaff
+    ? tasks
+    : tasks.filter(t => t.assignedToType !== 'individual' || t.assignedPlayerIds.includes(currentUserId));
+
   const [showModal, setShowModal] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -101,7 +106,7 @@ export const TaskAssignmentView: React.FC = () => {
   };
 
   const handleExportCsv = () => {
-    const rows = tasks.map(t => {
+    const rows = visibleTasks.map(t => {
       const completedCount = Object.values(t.completions || {}).filter((c: any) => c?.completed).length;
       return [
         t.title,
@@ -134,7 +139,7 @@ export const TaskAssignmentView: React.FC = () => {
             <div className="flex items-center gap-2">
               <h2 className="text-[#E0E0E1] font-bold text-lg font-serif">Assegna Compiti & Checklist Individuali</h2>
               <span className="px-2.5 py-0.5 bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40 text-xs font-bold rounded-full">
-                {tasks.length} Compiti Attivi
+                {visibleTasks.length} Compiti Attivi
               </span>
             </div>
             <p className="text-xs text-gray-400">
@@ -169,7 +174,7 @@ export const TaskAssignmentView: React.FC = () => {
 
       {/* Tasks List */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {tasks.map(task => {
+        {visibleTasks.map(task => {
           const isUserAssigned = task.assignedPlayerIds.includes(currentUserId);
           const isUserCompleted = !!task.completions?.[currentUserId]?.completed;
           const userProgress = task.completions?.[currentUserId]?.progress;
@@ -291,7 +296,7 @@ export const TaskAssignmentView: React.FC = () => {
           );
         })}
 
-        {tasks.length === 0 && (
+        {visibleTasks.length === 0 && (
           <div className="col-span-full py-12 text-center bg-[#121214] border border-[#2A2A2E] rounded-xl">
             <Target className="w-10 h-10 text-gray-600 mx-auto mb-2" />
             <p className="text-[#E0E0E1] font-bold text-base font-serif">Nessun Compito Assegnato</p>

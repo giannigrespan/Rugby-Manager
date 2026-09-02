@@ -78,6 +78,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const totalPlayersCount = players.length;
 
   const isAdmin = currentUser?.isAdmin;
+  const isStaff = currentUser?.role !== 'player';
+  const visibleTasksCount = isStaff
+    ? tasks.length
+    : tasks.filter(t => t.assignedToType !== 'individual' || t.assignedPlayerIds.includes(currentUser?.id || '')).length;
 
   const handleSelectTab = (tab: TabType) => {
     setActiveTab(tab);
@@ -156,7 +160,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           label: 'Assegna Compiti',
           subtitle: 'Video analysis & schede',
           icon: ClipboardList,
-          badge: tasks.length > 0 ? tasks.length : null,
+          badge: visibleTasksCount > 0 ? visibleTasksCount : null,
           badgeColor: 'bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40'
         }
       ]
