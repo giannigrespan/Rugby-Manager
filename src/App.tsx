@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { AuthProvider } from './context/AuthContext';
 import { DataProvider, useData } from './context/DataContext';
 import { Sidebar, TabType } from './components/Sidebar';
@@ -323,6 +324,7 @@ export default function App() {
     <AuthProvider>
       <DataProvider>
         <AppContent />
+        <Analytics />
       </DataProvider>
     </AuthProvider>
   );

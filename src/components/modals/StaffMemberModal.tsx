@@ -184,6 +184,7 @@ export const StaffMemberModal: React.FC<StaffMemberModalProps> = ({
               <option value="athletic_trainer">Preparatore Atletico / S&C Trainer</option>
               <option value="physiotherapist">Fisioterapista / Medico Sanitario</option>
               <option value="direttore_tecnico">Direttore Tecnico / Dirigente</option>
+              <option value="programmatore">Programmatore</option>
             </select>
           </div>
 

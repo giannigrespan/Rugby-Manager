@@ -131,6 +131,14 @@ interface RoleConfigItem {
 
 const ALL_ROLES_CONFIG: RoleConfigItem[] = [
   {
+    role: 'programmatore',
+    label: 'Programmatore',
+    shortLabel: 'Programmatore',
+    subtitle: 'Accesso tecnico completo per manutenzione e sviluppo della piattaforma',
+    badgeColor: 'bg-[#D4AF37] text-black border-[#D4AF37]',
+    isAdminAlways: true
+  },
+  {
     role: 'direttore_tecnico',
     label: 'Direttore Tecnico / Dirigente',
     shortLabel: 'Direttore Tecnico',
@@ -810,6 +818,7 @@ export const UserCredentialsAdminView: React.FC = () => {
                                     <option value="athletic_trainer">Preparatore Atletico</option>
                                     <option value="physiotherapist">Fisioterapista</option>
                                     <option value="direttore_tecnico">Direttore Tecnico / Dirigente</option>
+                                    <option value="programmatore">Programmatore</option>
                                   </select>
                                 ) : (
                                   <span className="inline-block text-[10px] text-gray-400 mt-0.5">
