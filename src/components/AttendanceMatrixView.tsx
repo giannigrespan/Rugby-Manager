@@ -576,8 +576,9 @@ export const AttendanceMatrixView: React.FC = () => {
             <thead className="bg-[#0A0A0B] sticky top-0 z-20 border-b border-[#2A2A2E]">
               <tr>
                 {/* Fixed Athlete Info Column */}
-                <th className="py-3.5 px-4 text-xs font-bold text-gray-300 uppercase tracking-widest sticky left-0 z-30 bg-[#0A0A0B] border-r border-[#2A2A2E] min-w-[250px] sm:min-w-[280px]">
-                  Giocatrice Rosa ({filteredPlayers.length})
+                <th className="py-3.5 px-2 sm:px-4 text-xs font-bold text-gray-300 uppercase tracking-widest sticky left-0 z-30 bg-[#0A0A0B] border-r border-[#2A2A2E] min-w-[110px] sm:min-w-[280px]">
+                  <span className="hidden sm:inline">Giocatrice Rosa ({filteredPlayers.length})</span>
+                  <span className="sm:hidden">Rosa ({filteredPlayers.length})</span>
                 </th>
 
                 {/* Presence Pct Column */}
@@ -608,27 +609,27 @@ export const AttendanceMatrixView: React.FC = () => {
                 const presencePct = getPlayerPresencePct(player.id);
                 return (
                   <tr key={player.id} className="hover:bg-[#1D1D21]/60 transition-colors">
-                    {/* Sticky Player Name & Position */}
-                    <td className="py-2.5 px-4 sticky left-0 z-10 bg-[#121214] border-r border-[#2A2A2E]">
-                      <div className="flex items-center gap-2.5">
-                        <span className="w-6 h-6 rounded bg-[#1D1D21] text-[#D4AF37] font-bold text-[11px] flex items-center justify-center border border-[#2A2A2E]">
+                    {/* Sticky Player Name & Position — trimmed on mobile so the session columns get more room */}
+                    <td className="py-2.5 px-2 sm:px-4 sticky left-0 z-10 bg-[#121214] border-r border-[#2A2A2E]">
+                      <div className="flex items-center gap-1.5 sm:gap-2.5">
+                        <span className="w-5 h-5 sm:w-6 sm:h-6 rounded bg-[#1D1D21] text-[#D4AF37] font-bold text-[10px] sm:text-[11px] flex items-center justify-center border border-[#2A2A2E] flex-shrink-0">
                           {player.jerseyNumber || (idx + 1)}
                         </span>
                         <div className="truncate">
                           <div className="font-bold text-[#E0E0E1] flex items-center gap-1.5">
                             <span className="truncate">{player.name}</span>
                             {player.status === 'injured' && (
-                              <span className="px-1.5 py-0.2 bg-red-500/20 text-red-400 border border-red-500/30 text-[9px] rounded font-semibold">
+                              <span className="hidden sm:inline px-1.5 py-0.2 bg-red-500/20 text-red-400 border border-red-500/30 text-[9px] rounded font-semibold">
                                 Infortunio
                               </span>
                             )}
                             {player.status === 'rehab_diff' && (
-                              <span className="px-1.5 py-0.2 bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 text-[9px] rounded font-semibold">
+                              <span className="hidden sm:inline px-1.5 py-0.2 bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 text-[9px] rounded font-semibold">
                                 Differenziato
                               </span>
                             )}
                           </div>
-                          <div className="text-[11px] text-gray-400 truncate flex items-center gap-1">
+                          <div className="hidden sm:flex text-[11px] text-gray-400 truncate items-center gap-1">
                             <span>{player.position}</span>
                             <span className="text-gray-600">•</span>
                             <span className={player.department === 'avanti' ? 'text-[#D4AF37]' : 'text-purple-400'}>
