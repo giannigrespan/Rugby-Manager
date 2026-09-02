@@ -1,4 +1,4 @@
-export type UserRole = 'direttore_tecnico' | 'head_coach' | 'assistant_coach' | 'athletic_trainer' | 'physiotherapist' | 'player';
+export type UserRole = 'programmatore' | 'direttore_tecnico' | 'head_coach' | 'assistant_coach' | 'athletic_trainer' | 'physiotherapist' | 'player';
 
 export type RugbyDepartment = 'avanti' | 'trequarti' | 'staff';
 
@@ -267,6 +267,17 @@ export type ConfigurableSection =
 export type RolePermissionsMap = Record<UserRole, Record<ConfigurableSection, boolean>>;
 
 export const DEFAULT_ROLE_PERMISSIONS: RolePermissionsMap = {
+  programmatore: {
+    presenze: true,
+    sessioni: true,
+    calci: true,
+    rpe_focus: true,
+    infortuni: true,
+    fisioterapia: true,
+    individuali: true,
+    compiti: true,
+    rosa: true
+  },
   direttore_tecnico: {
     presenze: true,
     sessioni: false,
