@@ -31,7 +31,7 @@ export const StaffMemberModal: React.FC<StaffMemberModalProps> = ({
       setName(initialData.name || '');
       setEmail(initialData.email || '');
       setRole(initialData.role || 'head_coach');
-      setIsAdmin(initialData.isAdmin ?? (initialData.role === 'direttore_tecnico' || initialData.role === 'head_coach'));
+      setIsAdmin(initialData.isAdmin ?? (initialData.role === 'head_coach'));
       setPhone(initialData.phone || '');
       setNotes(initialData.notes || '');
     } else {
@@ -49,9 +49,6 @@ export const StaffMemberModal: React.FC<StaffMemberModalProps> = ({
 
   const handleRoleChange = (newRole: UserRole) => {
     setRole(newRole);
-    if (newRole === 'direttore_tecnico') {
-      setIsAdmin(true);
-    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -75,7 +72,7 @@ export const StaffMemberModal: React.FC<StaffMemberModalProps> = ({
           name: name.trim(),
           email: email.trim().toLowerCase(),
           role,
-          isAdmin: isAdmin || role === 'direttore_tecnico',
+          isAdmin,
           phone: phone.trim() || undefined,
           notes: notes.trim() || undefined,
           position: 'Staff Tecnico',
@@ -87,7 +84,7 @@ export const StaffMemberModal: React.FC<StaffMemberModalProps> = ({
           name: name.trim(),
           email: email.trim().toLowerCase(),
           role,
-          isAdmin: isAdmin || role === 'direttore_tecnico',
+          isAdmin,
           phone: phone.trim() || undefined,
           notes: notes.trim() || undefined,
           position: 'Staff Tecnico',
@@ -194,13 +191,13 @@ export const StaffMemberModal: React.FC<StaffMemberModalProps> = ({
           <div className="p-3.5 bg-[#1D1D21] border border-[#2A2A2E] rounded-xl space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className={`p-1.5 rounded-lg ${isAdmin || role === 'direttore_tecnico' ? 'bg-[#D4AF37]/20 text-[#D4AF37]' : 'bg-[#2A2A2E] text-gray-400'}`}>
+                <div className={`p-1.5 rounded-lg ${isAdmin ? 'bg-[#D4AF37]/20 text-[#D4AF37]' : 'bg-[#2A2A2E] text-gray-400'}`}>
                   <KeyRound className="w-4 h-4" />
                 </div>
                 <div>
                   <p className="text-xs font-bold text-white flex items-center gap-1.5">
                     <span>Permessi di Amministratore (Admin)</span>
-                    {(isAdmin || role === 'direttore_tecnico') && (
+                    {isAdmin && (
                       <span className="px-1.5 py-0.2 bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40 text-[9px] font-bold rounded">
                         ATTIVO
                       </span>
@@ -215,16 +212,15 @@ export const StaffMemberModal: React.FC<StaffMemberModalProps> = ({
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={isAdmin || role === 'direttore_tecnico'}
+                  checked={isAdmin}
                   onChange={(e) => setIsAdmin(e.target.checked)}
-                  disabled={role === 'direttore_tecnico'}
                   className="sr-only peer"
                 />
                 <div className="w-11 h-6 bg-[#2A2A2E] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#D4AF37]"></div>
               </label>
             </div>
-            
-            {(isAdmin || role === 'direttore_tecnico') && (
+
+            {isAdmin && (
               <p className="text-[11px] text-[#D4AF37] bg-[#D4AF37]/10 p-2 rounded-lg border border-[#D4AF37]/20">
                 ✓ Questo utente potrà accedere alla scheda <strong>"10. Accessi & Credenziali"</strong>, creare nuovi account staff/atlete, modificare ruoli e importare file Excel/Google Sheets.
               </p>

@@ -208,7 +208,7 @@ export const UserCredentialsAdminView: React.FC = () => {
     ...players
   ];
 
-  const adminCount = staffUsers.filter(s => s.isAdmin || s.role === 'direttore_tecnico').length;
+  const adminCount = staffUsers.filter(s => s.isAdmin).length;
 
   const filteredUsers = allUsers.filter(u => {
     const matchesSearch = 
@@ -219,7 +219,7 @@ export const UserCredentialsAdminView: React.FC = () => {
     if (!matchesSearch) return false;
 
     if (filterType === 'staff') return u.role !== 'player';
-    if (filterType === 'admins') return u.isAdmin || u.role === 'direttore_tecnico';
+    if (filterType === 'admins') return u.isAdmin;
     if (filterType === 'players') return u.role === 'player';
     return true;
   });
@@ -235,7 +235,7 @@ export const UserCredentialsAdminView: React.FC = () => {
   };
 
   const handleToggleAdmin = async (user: UserProfile) => {
-    const nextState = !(user.isAdmin || user.role === 'direttore_tecnico');
+    const nextState = !user.isAdmin;
     await toggleStaffAdmin(user.id, nextState);
     setFeedbackMessage(
       nextState 
@@ -651,7 +651,7 @@ export const UserCredentialsAdminView: React.FC = () => {
               {/* Quick Staff Admin Badges */}
               <div className="flex flex-wrap items-center gap-2">
                 {staffUsers.map(staff => {
-                  const isUserAdmin = staff.isAdmin || staff.role === 'direttore_tecnico';
+                  const isUserAdmin = staff.isAdmin;
                   return (
                     <div 
                       key={staff.id}
@@ -764,7 +764,7 @@ export const UserCredentialsAdminView: React.FC = () => {
                   ) : (
                     filteredUsers.map((user) => {
                       const isStaff = user.role !== 'player';
-                      const isUserAdmin = user.isAdmin || user.role === 'direttore_tecnico';
+                      const isUserAdmin = user.isAdmin;
                       const pwd = user.tempPassword;
                       const isPasswordVisible = showPasswordMap[user.id] || false;
 

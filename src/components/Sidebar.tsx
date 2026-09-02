@@ -77,7 +77,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const unreadNotifsCount = notifications.filter(n => currentUser && !n.readBy.includes(currentUser.id)).length;
   const totalPlayersCount = players.length;
 
-  const isAdmin = currentUser?.isAdmin || currentUser?.role === 'direttore_tecnico';
+  const isAdmin = currentUser?.isAdmin;
 
   const handleSelectTab = (tab: TabType) => {
     setActiveTab(tab);
@@ -384,12 +384,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <p className="text-xs font-semibold text-[#E0E0E1] truncate">
                         {currentUser.name}
                       </p>
-                      {(currentUser.isAdmin || currentUser.role === 'direttore_tecnico') && (
+                      {currentUser.isAdmin && (
                         <Crown className="w-3 h-3 text-[#D4AF37] flex-shrink-0" />
                       )}
                     </div>
                     <p className="text-[10px] text-[#D4AF37] font-medium capitalize truncate">
-                      {currentUser.isAdmin || currentUser.role === 'direttore_tecnico' ? 'Admin • ' : ''}
+                      {currentUser.isAdmin ? 'Admin • ' : ''}
                       {currentUser.role.replace('_', ' ')}
                     </p>
                   </div>
@@ -405,7 +405,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <p className="text-gray-400 font-medium">Connesso come:</p>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <p className="font-bold text-[#E0E0E1] truncate">{currentUser.name}</p>
-                      {(currentUser.isAdmin || currentUser.role === 'direttore_tecnico') && (
+                      {currentUser.isAdmin && (
                         <span className="px-1.5 py-0.5 bg-[#D4AF37] text-black text-[9px] font-black rounded">
                           ADMIN
                         </span>
