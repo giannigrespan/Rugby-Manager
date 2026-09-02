@@ -11,7 +11,6 @@ import {
   UserCheck, 
   LogIn, 
   LogOut,
-  RefreshCw,
   Zap,
   Activity
 } from 'lucide-react';
@@ -45,7 +44,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenNotifications,
   onOpenAuthModal
 }) => {
-  const { players, injuries, physioNotes, tasks, notifications, cloudSyncStatus, isSyncing, clearAllData } = useData();
+  const { players, injuries, physioNotes, tasks, notifications, cloudSyncStatus, isSyncing } = useData();
   const { currentUser, staffUsers, logout } = useAuth();
   const [showRoleMenu, setShowRoleMenu] = useState(false);
 
@@ -139,23 +138,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </div>
 
                     <div className="pt-2 space-y-1">
-                      <div className="flex items-center justify-between gap-1">
-                        <button
-                          onClick={() => {
-                            if (window.confirm("Sei sicuro di voler svuotare tutti i dati salvati?")) {
-                              clearAllData();
-                            }
-                            setShowRoleMenu(false);
-                          }}
-                          className="px-2 py-1 text-[11px] text-gray-400 hover:text-red-400 flex items-center gap-1 transition-colors"
-                          title="Svuota tutti i dati per iniziare da zero"
-                        >
-                          <RefreshCw className="w-3 h-3" />
-                          <span>Svuota Dati</span>
-                        </button>
+                      <div className="flex items-center justify-end gap-1">
                         <button
                           onClick={() => { logout(); setShowRoleMenu(false); }}
-                          className="px-2 py-1 text-[11px] text-rose-400 hover:text-rose-300 flex items-center gap-1 transition-colors ml-auto"
+                          className="px-2 py-1 text-[11px] text-rose-400 hover:text-rose-300 flex items-center gap-1 transition-colors"
                         >
                           <LogOut className="w-3 h-3" />
                           <span>Esci</span>
