@@ -86,16 +86,17 @@ export const AttendanceMatrixView: React.FC = () => {
 
   const isStaff = currentUser?.role !== 'player';
 
-  // Filter players
+  // Filter players — a non-staff athlete may only ever see her own row
   const filteredPlayers = useMemo(() => {
-    return players.filter(p => {
+    const visiblePlayers = isStaff ? players : players.filter(p => p.id === currentUser?.id);
+    return visiblePlayers.filter(p => {
       const matchDep = selectedDepartment === 'all' || p.department === selectedDepartment;
-      const matchQuery = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      const matchQuery = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          (p.jerseyNumber && p.jerseyNumber.toString().includes(searchQuery)) ||
                          p.position.toLowerCase().includes(searchQuery.toLowerCase());
       return matchDep && matchQuery;
     });
-  }, [players, selectedDepartment, searchQuery]);
+  }, [players, selectedDepartment, searchQuery, isStaff, currentUser]);
 
   // All sessions sorted chronologically (used for CSV export and bulk-mark selector)
   const allSessionsSorted = useMemo(() => {
@@ -139,9 +140,10 @@ export const AttendanceMatrixView: React.FC = () => {
     let totalAI = 0;
     let totalDIF = 0;
     let totalRIT = 0;
-    let totalRecords = attendances.length;
+    const visibleAttendances = isStaff ? attendances : attendances.filter(a => a.playerId === currentUser?.id);
+    let totalRecords = visibleAttendances.length;
 
-    attendances.forEach(a => {
+    visibleAttendances.forEach(a => {
       if (a.status === 'present') totalP++;
       else if (a.status === 'absent_justified') totalAG++;
       else if (a.status === 'absent_unjustified') totalAI++;
@@ -152,7 +154,7 @@ export const AttendanceMatrixView: React.FC = () => {
     const presentRate = totalRecords > 0 ? Math.round(((totalP + totalRIT) / totalRecords) * 100) : 0;
 
     return { totalP, totalAG, totalAI, totalDIF, totalRIT, presentRate, totalRecords };
-  }, [attendances]);
+  }, [attendances, isStaff, currentUser]);
 
   // Helper for single player presence percentage
   const getPlayerPresencePct = (playerId: string) => {
