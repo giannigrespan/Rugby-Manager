@@ -9,18 +9,25 @@ import {
   CheckCircle2,
   Clock,
   Trash2,
+  Pencil,
   Users,
   Download
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 export const TaskAssignmentView: React.FC = () => {
-  const { players, tasks, createTask, toggleTaskCompletion, deleteTask, isSyncing } = useData();
+  const { players, tasks, createTask, updateTask, toggleTaskCompletion, deleteTask, isSyncing } = useData();
   const { currentUser } = useAuth();
   const isStaff = currentUser?.role !== 'player';
   const currentUserId = currentUser?.id || 'p-16';
 
+  // I compiti individuali devono essere visibili solo all'atleta assegnato e allo staff.
+  const visibleTasks = isStaff
+    ? tasks
+    : tasks.filter(t => t.assignedToType !== 'individual' || t.assignedPlayerIds.includes(currentUserId));
+
   const [showModal, setShowModal] = useState(false);
+  const [editingTask, setEditingTask] = useState<IndividualTask | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [assignedToType, setAssignedToType] = useState<IndividualTask['assignedToType']>('all');
@@ -40,6 +47,31 @@ export const TaskAssignmentView: React.FC = () => {
     );
   };
 
+  const resetForm = () => {
+    setEditingTask(null);
+    setTitle('');
+    setDescription('');
+    setAssignedToType('all');
+    setSelectedPlayerIds([]);
+    setDueDate(new Date(Date.now() + 86400000 * 3).toISOString().slice(0, 10));
+    setFrequency('weekly');
+    setPriority('high');
+    setGoalTarget('');
+  };
+
+  const openEditModal = (task: IndividualTask) => {
+    setEditingTask(task);
+    setTitle(task.title);
+    setDescription(task.description);
+    setAssignedToType(task.assignedToType);
+    setSelectedPlayerIds(task.assignedToType === 'individual' ? task.assignedPlayerIds : []);
+    setDueDate(task.dueDate);
+    setFrequency(task.frequency);
+    setPriority(task.priority);
+    setGoalTarget(task.goalTarget !== undefined && task.goalTarget !== null ? String(task.goalTarget) : '');
+    setShowModal(true);
+  };
+
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
@@ -55,23 +87,34 @@ export const TaskAssignmentView: React.FC = () => {
       targetIds = selectedPlayerIds;
     }
 
-    await createTask({
-      title,
-      description,
-      assignedToType,
-      assignedPlayerIds: targetIds,
-      dueDate,
-      frequency,
-      priority,
-      goalTarget: goalTarget.trim() ? Number(goalTarget) : undefined,
-      createdBy: currentUser?.name || 'Staff Tecnico'
-    });
+    if (editingTask) {
+      await updateTask({
+        ...editingTask,
+        title,
+        description,
+        assignedToType,
+        assignedPlayerIds: targetIds,
+        dueDate,
+        frequency,
+        priority,
+        goalTarget: goalTarget.trim() ? Number(goalTarget) : undefined
+      });
+    } else {
+      await createTask({
+        title,
+        description,
+        assignedToType,
+        assignedPlayerIds: targetIds,
+        dueDate,
+        frequency,
+        priority,
+        goalTarget: goalTarget.trim() ? Number(goalTarget) : undefined,
+        createdBy: currentUser?.name || 'Staff Tecnico'
+      });
+    }
 
     setShowModal(false);
-    setTitle('');
-    setDescription('');
-    setSelectedPlayerIds([]);
-    setGoalTarget('');
+    resetForm();
   };
 
   const handleToggle = async (task: IndividualTask, isCompleted: boolean) => {
@@ -101,7 +144,7 @@ export const TaskAssignmentView: React.FC = () => {
   };
 
   const handleExportCsv = () => {
-    const rows = tasks.map(t => {
+    const rows = visibleTasks.map(t => {
       const completedCount = Object.values(t.completions || {}).filter((c: any) => c?.completed).length;
       return [
         t.title,
@@ -134,7 +177,7 @@ export const TaskAssignmentView: React.FC = () => {
             <div className="flex items-center gap-2">
               <h2 className="text-[#E0E0E1] font-bold text-lg font-serif">Assegna Compiti & Checklist Individuali</h2>
               <span className="px-2.5 py-0.5 bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40 text-xs font-bold rounded-full">
-                {tasks.length} Compiti Attivi
+                {visibleTasks.length} Compiti Attivi
               </span>
             </div>
             <p className="text-xs text-gray-400">
@@ -157,7 +200,7 @@ export const TaskAssignmentView: React.FC = () => {
           {isStaff && (
             <button
               id="btn-create-task-modal"
-              onClick={() => setShowModal(true)}
+              onClick={() => { resetForm(); setShowModal(true); }}
               className="px-4 py-2.5 bg-[#D4AF37] hover:bg-[#C09F30] text-black text-xs font-bold rounded-lg shadow-md flex items-center gap-2 transition-all active:scale-95"
             >
               <Plus className="w-4 h-4" />
@@ -169,7 +212,7 @@ export const TaskAssignmentView: React.FC = () => {
 
       {/* Tasks List */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {tasks.map(task => {
+        {visibleTasks.map(task => {
           const isUserAssigned = task.assignedPlayerIds.includes(currentUserId);
           const isUserCompleted = !!task.completions?.[currentUserId]?.completed;
           const userProgress = task.completions?.[currentUserId]?.progress;
@@ -212,6 +255,18 @@ export const TaskAssignmentView: React.FC = () => {
                     Scadenza: {task.dueDate}
                   </span>
                 </div>
+
+                {/* Assigned athletes names (staff only) */}
+                {isStaff && task.assignedToType === 'individual' && (
+                  <div className="text-[11px] text-gray-400 bg-[#1D1D21] p-2.5 rounded-lg border border-[#2A2A2E]">
+                    <span className="text-gray-500">Assegnato a: </span>
+                    <span className="text-[#E0E0E1]">
+                      {task.assignedPlayerIds
+                        .map(id => players.find(p => p.id === id)?.name || 'Atleta rimossa')
+                        .join(', ')}
+                    </span>
+                  </div>
+                )}
 
                 {/* Completion Progress Bar for Staff */}
                 <div className="space-y-1">
@@ -278,20 +333,29 @@ export const TaskAssignmentView: React.FC = () => {
                 )}
 
                 {isStaff && (
-                  <button
-                    onClick={() => deleteTask(task.id)}
-                    className="p-2 text-gray-400 hover:text-red-400 hover:bg-[#1D1D21] rounded-lg transition-colors"
-                    title="Elimina compito"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => openEditModal(task)}
+                      className="p-2 text-gray-400 hover:text-[#D4AF37] hover:bg-[#1D1D21] rounded-lg transition-colors"
+                      title="Modifica compito"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => deleteTask(task.id)}
+                      className="p-2 text-gray-400 hover:text-red-400 hover:bg-[#1D1D21] rounded-lg transition-colors"
+                      title="Elimina compito"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
           );
         })}
 
-        {tasks.length === 0 && (
+        {visibleTasks.length === 0 && (
           <div className="col-span-full py-12 text-center bg-[#121214] border border-[#2A2A2E] rounded-xl">
             <Target className="w-10 h-10 text-gray-600 mx-auto mb-2" />
             <p className="text-[#E0E0E1] font-bold text-base font-serif">Nessun Compito Assegnato</p>
@@ -308,9 +372,9 @@ export const TaskAssignmentView: React.FC = () => {
             <div className="flex items-center justify-between border-b border-[#2A2A2E] pb-3">
               <h3 className="text-[#E0E0E1] font-bold text-base font-serif flex items-center gap-2">
                 <Target className="w-5 h-5 text-[#D4AF37]" />
-                Assegna Nuovo Compito alla Squadra / Atlete
+                {editingTask ? 'Modifica Compito' : 'Assegna Nuovo Compito alla Squadra / Atlete'}
               </h3>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-white p-1">✕</button>
+              <button onClick={() => { setShowModal(false); resetForm(); }} className="text-gray-400 hover:text-white p-1">✕</button>
             </div>
 
             <form onSubmit={handleCreateTask} className="space-y-4 text-xs">
@@ -418,7 +482,7 @@ export const TaskAssignmentView: React.FC = () => {
               <div className="flex justify-end gap-2 pt-2 border-t border-[#2A2A2E]">
                 <button
                   type="button"
-                  onClick={() => setShowModal(false)}
+                  onClick={() => { setShowModal(false); resetForm(); }}
                   className="px-4 py-2 bg-[#1D1D21] hover:bg-[#26262B] text-gray-300 font-semibold rounded-lg border border-[#2A2A2E]"
                 >
                   Annulla
@@ -428,7 +492,7 @@ export const TaskAssignmentView: React.FC = () => {
                   disabled={isSyncing || (assignedToType === 'individual' && selectedPlayerIds.length === 0)}
                   className="px-4 py-2 bg-[#D4AF37] hover:bg-[#C09F30] text-black font-bold rounded-lg shadow-md transition-all active:scale-95 disabled:opacity-50"
                 >
-                  Crea e Notifica Squadra
+                  {editingTask ? 'Salva Modifiche' : 'Crea e Notifica Squadra'}
                 </button>
               </div>
 
