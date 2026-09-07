@@ -39,14 +39,6 @@ const getMondayOfWeek = (dateStr: string): Date => {
   return d;
 };
 
-// Sunday (start) of the week containing the given YYYY-MM-DD date — the
-// attendance matrix groups sessions week-by-week starting on Sunday.
-const getSundayOfWeek = (dateStr: string): Date => {
-  const d = new Date(`${dateStr}T00:00:00`);
-  d.setDate(d.getDate() - d.getDay());
-  return d;
-};
-
 const toDateKey = (d: Date): string => d.toISOString().slice(0, 10);
 
 const formatItDate = (d: Date): string => d.toLocaleDateString('it-IT', { day: '2-digit', month: 'long' });
@@ -70,7 +62,7 @@ export const AttendanceMatrixView: React.FC = () => {
   const [selectedDepartment, setSelectedDepartment] = useState<'all' | 'avanti' | 'trequarti'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSessionId, setSelectedSessionId] = useState<string>(sessions[0]?.id || '');
-  const [weekStart, setWeekStart] = useState<Date>(() => getSundayOfWeek(new Date().toISOString().slice(0, 10)));
+  const [weekStart, setWeekStart] = useState<Date>(() => getMondayOfWeek(new Date().toISOString().slice(0, 10)));
   const [editingCell, setEditingCell] = useState<{
     recordId: string;
     sessionId: string;
@@ -109,7 +101,7 @@ export const AttendanceMatrixView: React.FC = () => {
     return d;
   }, [weekStart]);
 
-  // Sessions of the selected week only (Sunday to Saturday) — the columns shown in the matrix
+  // Sessions of the selected week only (Monday to Sunday) — the columns shown in the matrix
   const weekSessions = useMemo(() => {
     return allSessionsSorted.filter(s => {
       const d = new Date(`${s.date}T00:00:00`);
@@ -129,9 +121,9 @@ export const AttendanceMatrixView: React.FC = () => {
     return d;
   });
 
-  const goToCurrentWeek = () => setWeekStart(getSundayOfWeek(new Date().toISOString().slice(0, 10)));
+  const goToCurrentWeek = () => setWeekStart(getMondayOfWeek(new Date().toISOString().slice(0, 10)));
 
-  const isCurrentWeek = toDateKey(weekStart) === toDateKey(getSundayOfWeek(new Date().toISOString().slice(0, 10)));
+  const isCurrentWeek = toDateKey(weekStart) === toDateKey(getMondayOfWeek(new Date().toISOString().slice(0, 10)));
 
   // Calculate overall attendance stats
   const stats = useMemo(() => {
@@ -335,8 +327,8 @@ export const AttendanceMatrixView: React.FC = () => {
         )}
       </div>
 
-      {/* Header & Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+      {/* Header & Stats Cards — hidden on mobile to keep the matrix screen lean; full detail stays on tablet/desktop */}
+      <div className="hidden sm:grid sm:grid-cols-3 lg:grid-cols-6 gap-4">
         <div className="bg-[#121214] border border-[#2A2A2E] rounded-xl p-5 shadow-sm">
           <p className="text-xs uppercase tracking-widest text-gray-500 mb-1">Tasso Presenze</p>
           <div className="flex items-baseline gap-2 mt-1">
@@ -544,7 +536,7 @@ export const AttendanceMatrixView: React.FC = () => {
               {formatItDate(weekStart)} – {formatItDate(weekEnd)}
             </p>
             <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-0.5">
-              Settimana da Domenica a Sabato · {weekSessions.length} {weekSessions.length === 1 ? 'sessione' : 'sessioni'}
+              Settimana da Lunedì a Domenica · {weekSessions.length} {weekSessions.length === 1 ? 'sessione' : 'sessioni'}
             </p>
           </div>
 
@@ -576,8 +568,9 @@ export const AttendanceMatrixView: React.FC = () => {
             <thead className="bg-[#0A0A0B] sticky top-0 z-20 border-b border-[#2A2A2E]">
               <tr>
                 {/* Fixed Athlete Info Column */}
-                <th className="py-3.5 px-4 text-xs font-bold text-gray-300 uppercase tracking-widest sticky left-0 z-30 bg-[#0A0A0B] border-r border-[#2A2A2E] min-w-[250px] sm:min-w-[280px]">
-                  Giocatrice Rosa ({filteredPlayers.length})
+                <th className="py-3.5 px-2 sm:px-4 text-xs font-bold text-gray-300 uppercase tracking-widest sticky left-0 z-30 bg-[#0A0A0B] border-r border-[#2A2A2E] min-w-[110px] sm:min-w-[280px]">
+                  <span className="hidden sm:inline">Giocatrice Rosa ({filteredPlayers.length})</span>
+                  <span className="sm:hidden">Rosa ({filteredPlayers.length})</span>
                 </th>
 
                 {/* Presence Pct Column */}
@@ -608,27 +601,27 @@ export const AttendanceMatrixView: React.FC = () => {
                 const presencePct = getPlayerPresencePct(player.id);
                 return (
                   <tr key={player.id} className="hover:bg-[#1D1D21]/60 transition-colors">
-                    {/* Sticky Player Name & Position */}
-                    <td className="py-2.5 px-4 sticky left-0 z-10 bg-[#121214] border-r border-[#2A2A2E]">
-                      <div className="flex items-center gap-2.5">
-                        <span className="w-6 h-6 rounded bg-[#1D1D21] text-[#D4AF37] font-bold text-[11px] flex items-center justify-center border border-[#2A2A2E]">
+                    {/* Sticky Player Name & Position — trimmed on mobile so the session columns get more room */}
+                    <td className="py-2.5 px-2 sm:px-4 sticky left-0 z-10 bg-[#121214] border-r border-[#2A2A2E]">
+                      <div className="flex items-center gap-1.5 sm:gap-2.5">
+                        <span className="w-5 h-5 sm:w-6 sm:h-6 rounded bg-[#1D1D21] text-[#D4AF37] font-bold text-[10px] sm:text-[11px] flex items-center justify-center border border-[#2A2A2E] flex-shrink-0">
                           {player.jerseyNumber || (idx + 1)}
                         </span>
                         <div className="truncate">
                           <div className="font-bold text-[#E0E0E1] flex items-center gap-1.5">
                             <span className="truncate">{player.name}</span>
                             {player.status === 'injured' && (
-                              <span className="px-1.5 py-0.2 bg-red-500/20 text-red-400 border border-red-500/30 text-[9px] rounded font-semibold">
+                              <span className="hidden sm:inline px-1.5 py-0.2 bg-red-500/20 text-red-400 border border-red-500/30 text-[9px] rounded font-semibold">
                                 Infortunio
                               </span>
                             )}
                             {player.status === 'rehab_diff' && (
-                              <span className="px-1.5 py-0.2 bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 text-[9px] rounded font-semibold">
+                              <span className="hidden sm:inline px-1.5 py-0.2 bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 text-[9px] rounded font-semibold">
                                 Differenziato
                               </span>
                             )}
                           </div>
-                          <div className="text-[11px] text-gray-400 truncate flex items-center gap-1">
+                          <div className="hidden sm:flex text-[11px] text-gray-400 truncate items-center gap-1">
                             <span>{player.position}</span>
                             <span className="text-gray-600">•</span>
                             <span className={player.department === 'avanti' ? 'text-[#D4AF37]' : 'text-purple-400'}>
