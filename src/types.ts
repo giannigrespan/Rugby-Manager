@@ -197,6 +197,14 @@ export interface KickingSession {
   // dettagliato compilato dallo staff. Le atlete registrano invece solo
   // un tempo di lavoro generico o un test di precisione per posizione.
   sessionType?: 'full' | 'generic' | 'placed_kicks_test';
+  // Conteggi grezzi riusciti/tentati per posizione, inseriti dall'atleta nel
+  // test calci piazzati (es. 15/20): fieldZoneSuccess viene calcolato da
+  // questi valori per mantenere compatibilità con la visualizzazione %.
+  fieldZoneStats?: {
+    sinistra: { success: number; total: number };
+    centro: { success: number; total: number };
+    destra: { success: number; total: number };
+  };
 }
 
 export interface IndividualTrainingLog {

@@ -47,21 +47,29 @@ export const KickingSpecialistsView: React.FC = () => {
   );
 
   // Form semplificato per le atlete: tempo di lavoro generico oppure test
-  // di precisione sui piazzati, con solo le percentuali per posizione.
+  // di precisione sui piazzati, con i conteggi riusciti/tentati per
+  // posizione (es. 15/20) invece di una percentuale. Stringhe vuote di
+  // default: nessun valore precompilato finché l'atleta non lo inserisce.
   const [athleteMode, setAthleteMode] = useState<'generic' | 'test'>('generic');
   const [athleteDurationMin, setAthleteDurationMin] = useState(30);
   const [athleteNotes, setAthleteNotes] = useState('');
-  const [testSinistra, setTestSinistra] = useState(0);
-  const [testCentro, setTestCentro] = useState(0);
-  const [testDestra, setTestDestra] = useState(0);
+  const [testSinistraSuccess, setTestSinistraSuccess] = useState('');
+  const [testSinistraTotal, setTestSinistraTotal] = useState('');
+  const [testCentroSuccess, setTestCentroSuccess] = useState('');
+  const [testCentroTotal, setTestCentroTotal] = useState('');
+  const [testDestraSuccess, setTestDestraSuccess] = useState('');
+  const [testDestraTotal, setTestDestraTotal] = useState('');
 
   const resetAthleteForm = () => {
     setAthleteMode('generic');
     setAthleteDurationMin(30);
     setAthleteNotes('');
-    setTestSinistra(0);
-    setTestCentro(0);
-    setTestDestra(0);
+    setTestSinistraSuccess('');
+    setTestSinistraTotal('');
+    setTestCentroSuccess('');
+    setTestCentroTotal('');
+    setTestDestraSuccess('');
+    setTestDestraTotal('');
   };
 
   const handleCreateAthleteKicking = async (e: React.FormEvent) => {
@@ -75,6 +83,9 @@ export const KickingSpecialistsView: React.FC = () => {
       upAndUnder: { total: 0, success: 0 }
     };
 
+    const toCount = (v: string) => Math.max(0, parseInt(v) || 0);
+    const pct = (success: number, total: number) => Math.round((success / total) * 100) || 0;
+
     const payload = athleteMode === 'generic'
       ? {
           playerId: currentUser.id,
@@ -87,18 +98,28 @@ export const KickingSpecialistsView: React.FC = () => {
           notes: athleteNotes.trim() ? athleteNotes : undefined,
           sessionType: 'generic' as const
         }
-      : {
-          playerId: currentUser.id,
-          playerName: currentUser.name,
-          date: editingKick ? editingKick.date : new Date().toISOString().slice(0, 10),
-          durationMin: athleteDurationMin,
-          totalKicks: 0,
-          successfulKicks: 0,
-          stats: emptyStats,
-          fieldZoneSuccess: { sinistra: testSinistra, centro: testCentro, destra: testDestra },
-          notes: athleteNotes.trim() ? athleteNotes : undefined,
-          sessionType: 'placed_kicks_test' as const
-        };
+      : (() => {
+          const sinistra = { success: toCount(testSinistraSuccess), total: toCount(testSinistraTotal) };
+          const centro = { success: toCount(testCentroSuccess), total: toCount(testCentroTotal) };
+          const destra = { success: toCount(testDestraSuccess), total: toCount(testDestraTotal) };
+          return {
+            playerId: currentUser.id,
+            playerName: currentUser.name,
+            date: editingKick ? editingKick.date : new Date().toISOString().slice(0, 10),
+            durationMin: athleteDurationMin,
+            totalKicks: 0,
+            successfulKicks: 0,
+            stats: emptyStats,
+            fieldZoneStats: { sinistra, centro, destra },
+            fieldZoneSuccess: {
+              sinistra: pct(sinistra.success, sinistra.total),
+              centro: pct(centro.success, centro.total),
+              destra: pct(destra.success, destra.total)
+            },
+            notes: athleteNotes.trim() ? athleteNotes : undefined,
+            sessionType: 'placed_kicks_test' as const
+          };
+        })();
 
     if (editingKick) {
       await updateKickingSession({ ...payload, id: editingKick.id });
@@ -149,9 +170,12 @@ export const KickingSpecialistsView: React.FC = () => {
       setAthleteMode(ks.sessionType === 'placed_kicks_test' ? 'test' : 'generic');
       setAthleteDurationMin(ks.durationMin);
       setAthleteNotes(ks.notes || '');
-      setTestSinistra(ks.fieldZoneSuccess?.sinistra ?? 0);
-      setTestCentro(ks.fieldZoneSuccess?.centro ?? 0);
-      setTestDestra(ks.fieldZoneSuccess?.destra ?? 0);
+      setTestSinistraSuccess(ks.fieldZoneStats ? String(ks.fieldZoneStats.sinistra.success) : '');
+      setTestSinistraTotal(ks.fieldZoneStats ? String(ks.fieldZoneStats.sinistra.total) : '');
+      setTestCentroSuccess(ks.fieldZoneStats ? String(ks.fieldZoneStats.centro.success) : '');
+      setTestCentroTotal(ks.fieldZoneStats ? String(ks.fieldZoneStats.centro.total) : '');
+      setTestDestraSuccess(ks.fieldZoneStats ? String(ks.fieldZoneStats.destra.success) : '');
+      setTestDestraTotal(ks.fieldZoneStats ? String(ks.fieldZoneStats.destra.total) : '');
       setShowModal(true);
       return;
     }
@@ -400,14 +424,23 @@ export const KickingSpecialistsView: React.FC = () => {
                     <div className="bg-[#121214] p-1.5 rounded-lg border border-[#2A2A2E]">
                       <p className="text-gray-400">Sinistra</p>
                       <p className="font-bold text-emerald-400">{ks.fieldZoneSuccess.sinistra}%</p>
+                      {ks.fieldZoneStats && (
+                        <p className="text-[10px] text-gray-500">{ks.fieldZoneStats.sinistra.success}/{ks.fieldZoneStats.sinistra.total}</p>
+                      )}
                     </div>
                     <div className="bg-[#121214] p-1.5 rounded-lg border border-[#2A2A2E]">
                       <p className="text-gray-400">Centro</p>
                       <p className="font-bold text-[#D4AF37]">{ks.fieldZoneSuccess.centro}%</p>
+                      {ks.fieldZoneStats && (
+                        <p className="text-[10px] text-gray-500">{ks.fieldZoneStats.centro.success}/{ks.fieldZoneStats.centro.total}</p>
+                      )}
                     </div>
                     <div className="bg-[#121214] p-1.5 rounded-lg border border-[#2A2A2E]">
                       <p className="text-gray-400">Destra</p>
                       <p className="font-bold text-emerald-400">{ks.fieldZoneSuccess.destra}%</p>
+                      {ks.fieldZoneStats && (
+                        <p className="text-[10px] text-gray-500">{ks.fieldZoneStats.destra.success}/{ks.fieldZoneStats.destra.total}</p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -490,37 +523,70 @@ export const KickingSpecialistsView: React.FC = () => {
                 {athleteMode === 'test' && (
                   <div className="grid grid-cols-3 gap-3 bg-[#1D1D21] p-3 rounded-lg border border-[#2A2A2E]">
                     <div>
-                      <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[10px]">Sinistra %</label>
-                      <input
-                        type="number"
-                        min={0}
-                        max={100}
-                        value={testSinistra}
-                        onChange={(e) => setTestSinistra(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
-                        className="w-full px-2 py-1.5 bg-[#121214] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] font-bold text-center"
-                      />
+                      <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[10px]">Sinistra (Riusciti/Tot):</label>
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          min={0}
+                          placeholder="0"
+                          value={testSinistraSuccess}
+                          onChange={(e) => setTestSinistraSuccess(e.target.value)}
+                          className="w-full min-w-0 px-2 py-1.5 bg-[#121214] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] placeholder-gray-600 font-bold text-center"
+                        />
+                        <span className="text-gray-400 font-bold">/</span>
+                        <input
+                          type="number"
+                          min={0}
+                          placeholder="0"
+                          value={testSinistraTotal}
+                          onChange={(e) => setTestSinistraTotal(e.target.value)}
+                          className="w-full min-w-0 px-2 py-1.5 bg-[#121214] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] placeholder-gray-600 font-bold text-center"
+                        />
+                      </div>
                     </div>
                     <div>
-                      <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[10px]">Centro %</label>
-                      <input
-                        type="number"
-                        min={0}
-                        max={100}
-                        value={testCentro}
-                        onChange={(e) => setTestCentro(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
-                        className="w-full px-2 py-1.5 bg-[#121214] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] font-bold text-center"
-                      />
+                      <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[10px]">Centro (Riusciti/Tot):</label>
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          min={0}
+                          placeholder="0"
+                          value={testCentroSuccess}
+                          onChange={(e) => setTestCentroSuccess(e.target.value)}
+                          className="w-full min-w-0 px-2 py-1.5 bg-[#121214] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] placeholder-gray-600 font-bold text-center"
+                        />
+                        <span className="text-gray-400 font-bold">/</span>
+                        <input
+                          type="number"
+                          min={0}
+                          placeholder="0"
+                          value={testCentroTotal}
+                          onChange={(e) => setTestCentroTotal(e.target.value)}
+                          className="w-full min-w-0 px-2 py-1.5 bg-[#121214] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] placeholder-gray-600 font-bold text-center"
+                        />
+                      </div>
                     </div>
                     <div>
-                      <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[10px]">Destra %</label>
-                      <input
-                        type="number"
-                        min={0}
-                        max={100}
-                        value={testDestra}
-                        onChange={(e) => setTestDestra(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
-                        className="w-full px-2 py-1.5 bg-[#121214] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] font-bold text-center"
-                      />
+                      <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[10px]">Destra (Riusciti/Tot):</label>
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          min={0}
+                          placeholder="0"
+                          value={testDestraSuccess}
+                          onChange={(e) => setTestDestraSuccess(e.target.value)}
+                          className="w-full min-w-0 px-2 py-1.5 bg-[#121214] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] placeholder-gray-600 font-bold text-center"
+                        />
+                        <span className="text-gray-400 font-bold">/</span>
+                        <input
+                          type="number"
+                          min={0}
+                          placeholder="0"
+                          value={testDestraTotal}
+                          onChange={(e) => setTestDestraTotal(e.target.value)}
+                          className="w-full min-w-0 px-2 py-1.5 bg-[#121214] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] placeholder-gray-600 font-bold text-center"
+                        />
+                      </div>
                     </div>
                   </div>
                 )}
