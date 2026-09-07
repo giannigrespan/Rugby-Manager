@@ -16,8 +16,20 @@ import {
   ShieldCheck,
   Download,
   Trash2,
-  Edit2
+  Edit2,
+  Target
 } from 'lucide-react';
+
+const WEEKLY_MIN_EXTRA_TRAININGS = 3;
+
+// Monday (start) of the ISO week containing the given YYYY-MM-DD date
+const getMondayOfWeek = (dateStr: string): Date => {
+  const d = new Date(`${dateStr}T00:00:00`);
+  const day = d.getDay(); // 0 = Sunday ... 6 = Saturday
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diffToMonday);
+  return d;
+};
 
 export const IndividualTrainingsView: React.FC = () => {
   const { players, individualLogs, addIndividualLog, updateIndividualLog, deleteIndividualLog, isSyncing } = useData();
@@ -25,6 +37,19 @@ export const IndividualTrainingsView: React.FC = () => {
   const isPlayer = currentUser?.role === 'player';
   const isStaff = !isPlayer;
   const defaultPlayerId = isPlayer ? currentUser.id : players[0]?.id || '';
+
+  // Conteggio allenamenti extra della settimana corrente (Lunedì-Domenica),
+  // per verificare il minimo richiesto di 3 sedute settimanali per atleta.
+  const weekStart = getMondayOfWeek(new Date().toISOString().slice(0, 10));
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate() + 6);
+  const isInCurrentWeek = (dateStr: string) => {
+    const d = new Date(`${dateStr}T00:00:00`);
+    return d >= weekStart && d <= weekEnd;
+  };
+  const myWeeklyCount = isPlayer
+    ? individualLogs.filter(l => l.playerId === currentUser?.id && isInCurrentWeek(l.date)).length
+    : 0;
 
   const canEditLog = (log: IndividualTrainingLog) => isStaff || log.playerId === currentUser?.id;
 
@@ -165,6 +190,37 @@ export const IndividualTrainingsView: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Weekly Minimum Compliance Banner (athlete only) */}
+      {isPlayer && (
+        <div className={`rounded-xl p-4 shadow-xl flex items-center justify-between gap-3 border ${
+          myWeeklyCount >= WEEKLY_MIN_EXTRA_TRAININGS
+            ? 'bg-emerald-950/30 border-emerald-500/40'
+            : 'bg-amber-950/30 border-amber-500/40'
+        }`}>
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-lg ${myWeeklyCount >= WEEKLY_MIN_EXTRA_TRAININGS ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
+              <Target className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-[#E0E0E1]">
+                Allenamenti Extra Questa Settimana: {myWeeklyCount} / {WEEKLY_MIN_EXTRA_TRAININGS}
+              </p>
+              <p className="text-[11px] text-gray-400 mt-0.5">
+                {myWeeklyCount >= WEEKLY_MIN_EXTRA_TRAININGS
+                  ? 'Obiettivo settimanale raggiunto, complimenti!'
+                  : `Ti mancano ${WEEKLY_MIN_EXTRA_TRAININGS - myWeeklyCount} sedute per raggiungere il minimo richiesto (Lunedì-Domenica)`}
+              </p>
+            </div>
+          </div>
+          <div className="w-24 bg-[#1D1D21] h-2 rounded-full overflow-hidden border border-[#2A2A2E]">
+            <div
+              className={`h-full rounded-full ${myWeeklyCount >= WEEKLY_MIN_EXTRA_TRAININGS ? 'bg-emerald-500' : 'bg-amber-500'}`}
+              style={{ width: `${Math.min(100, Math.round((myWeeklyCount / WEEKLY_MIN_EXTRA_TRAININGS) * 100))}%` }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

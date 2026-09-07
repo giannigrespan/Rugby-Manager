@@ -193,6 +193,10 @@ export interface KickingSession {
     sinistra: number;
   };
   notes?: string;
+  // 'full' (o assente, per compatibilità con i dati storici) è il report
+  // dettagliato compilato dallo staff. Le atlete registrano invece solo
+  // un tempo di lavoro generico o un test di precisione per posizione.
+  sessionType?: 'full' | 'generic' | 'placed_kicks_test';
 }
 
 export interface IndividualTrainingLog {
