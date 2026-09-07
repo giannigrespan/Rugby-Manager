@@ -28,7 +28,9 @@ export const InjuryReportView: React.FC = () => {
   const [note, setNote] = useState('');
   const [exportRange, setExportRange] = useState<'week' | 'season'>('season');
 
-  const activeInjuries = injuries.filter(i => i.status !== 'cleared');
+  // Ogni atleta vede solo il proprio report infortuni; lo staff vede tutta la rosa.
+  const visibleInjuries = isStaff ? injuries : injuries.filter(i => i.playerId === currentUser?.id);
+  const activeInjuries = visibleInjuries.filter(i => i.status !== 'cleared');
 
   // Segnalazione rapida da parte dell'atleta (o dello staff): solo nome, data e nota.
   // Il dettaglio clinico (zona, gravità, piano terapeutico) è compito della fisioterapista
@@ -68,8 +70,8 @@ export const InjuryReportView: React.FC = () => {
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
     const source = exportRange === 'week'
-      ? injuries.filter(i => new Date(i.injuryDate) >= oneWeekAgo)
-      : injuries;
+      ? visibleInjuries.filter(i => new Date(i.injuryDate) >= oneWeekAgo)
+      : visibleInjuries;
 
     exportToCsv(
       `infortuni_fastidi_${exportRange === 'week' ? 'settimana' : 'stagione'}_${new Date().toISOString().slice(0, 10)}.csv`,
@@ -139,7 +141,7 @@ export const InjuryReportView: React.FC = () => {
       </div>
 
       {/* World Rugby HIA Banner if any */}
-      {injuries.some(i => i.hiaConcussionProtocol && i.status !== 'cleared') && (
+      {visibleInjuries.some(i => i.hiaConcussionProtocol && i.status !== 'cleared') && (
         <div className="bg-[#1D1D21] border border-[#D4AF37]/50 p-4 rounded-xl flex items-start gap-3 text-amber-200 text-xs">
           <ShieldAlert className="w-5 h-5 text-[#D4AF37] shrink-0 mt-0.5" />
           <div>
