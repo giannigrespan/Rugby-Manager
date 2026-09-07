@@ -23,6 +23,11 @@ export const SessionManagementView: React.FC = () => {
   const { currentUser } = useAuth();
   const isStaff = currentUser?.role !== 'player';
 
+  // Sessioni ordinate dalla più recente alla meno recente (per data e orario)
+  const sortedSessions = [...sessions].sort((a, b) =>
+    new Date(`${b.date}T${b.time || '00:00'}`).getTime() - new Date(`${a.date}T${a.time || '00:00'}`).getTime()
+  );
+
   const [showModal, setShowModal] = useState(false);
   const [editingSession, setEditingSession] = useState<TrainingSession | null>(null);
 
@@ -153,7 +158,7 @@ export const SessionManagementView: React.FC = () => {
 
       {/* Sessions Timeline Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {sessions.map(s => {
+        {sortedSessions.map(s => {
           const googleCalUrl = generateGoogleCalendarUrl(s);
 
           return (

@@ -56,6 +56,17 @@ export const IndividualTrainingsView: React.FC = () => {
     ? visibleLogs.filter(l => l.playerId === currentUser?.id && isInCurrentWeek(l.date)).length
     : 0;
 
+  // Progresso settimanale di tutta la rosa, visibile solo allo staff: quante
+  // sedute extra ha registrato ogni atleta questa settimana rispetto al minimo.
+  const squadWeeklyProgress = isStaff
+    ? [...players]
+        .map(p => ({
+          player: p,
+          count: individualLogs.filter(l => l.playerId === p.id && isInCurrentWeek(l.date)).length
+        }))
+        .sort((a, b) => a.count - b.count || a.player.name.localeCompare(b.player.name))
+    : [];
+
   const canEditLog = (log: IndividualTrainingLog) => isStaff || log.playerId === currentUser?.id;
 
   const handleDeleteLog = (log: IndividualTrainingLog) => {
@@ -223,6 +234,41 @@ export const IndividualTrainingsView: React.FC = () => {
               className={`h-full rounded-full ${myWeeklyCount >= WEEKLY_MIN_EXTRA_TRAININGS ? 'bg-emerald-500' : 'bg-amber-500'}`}
               style={{ width: `${Math.min(100, Math.round((myWeeklyCount / WEEKLY_MIN_EXTRA_TRAININGS) * 100))}%` }}
             />
+          </div>
+        </div>
+      )}
+
+      {/* Weekly Squad Progress Panel (staff only) */}
+      {isStaff && (
+        <div className="bg-[#121214] border border-[#2A2A2E] rounded-xl p-5 shadow-xl space-y-3">
+          <div className="flex items-center gap-2">
+            <Target className="w-4 h-4 text-[#D4AF37]" />
+            <h3 className="text-xs font-bold text-gray-300 uppercase tracking-widest">
+              Progressi Allenamenti Extra della Settimana (minimo {WEEKLY_MIN_EXTRA_TRAININGS}, Lunedì-Domenica)
+            </h3>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {squadWeeklyProgress.map(({ player, count }) => (
+              <div
+                key={player.id}
+                className={`flex items-center justify-between gap-3 px-3 py-2 rounded-lg border text-xs ${
+                  count >= WEEKLY_MIN_EXTRA_TRAININGS
+                    ? 'bg-emerald-950/20 border-emerald-500/30'
+                    : 'bg-amber-950/20 border-amber-500/30'
+                }`}
+              >
+                <span className="text-gray-300 truncate">
+                  #{player.jerseyNumber || '-'} {player.name}
+                </span>
+                <span className={`font-bold whitespace-nowrap ${count >= WEEKLY_MIN_EXTRA_TRAININGS ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  {count} / {WEEKLY_MIN_EXTRA_TRAININGS}
+                </span>
+              </div>
+            ))}
+
+            {squadWeeklyProgress.length === 0 && (
+              <p className="text-xs text-gray-500 italic col-span-full">Nessuna atleta in rosa.</p>
+            )}
           </div>
         </div>
       )}
