@@ -26,6 +26,11 @@ export const IndividualTrainingsView: React.FC = () => {
   const isStaff = !isPlayer;
   const defaultPlayerId = isPlayer ? currentUser.id : players[0]?.id || '';
 
+  // Ogni atleta vede solo i propri allenamenti extra; lo staff vede quelli di tutta la rosa.
+  const visibleLogs = isStaff
+    ? individualLogs
+    : individualLogs.filter(l => l.playerId === currentUser?.id);
+
   const canEditLog = (log: IndividualTrainingLog) => isStaff || log.playerId === currentUser?.id;
 
   const handleDeleteLog = (log: IndividualTrainingLog) => {
@@ -111,7 +116,7 @@ export const IndividualTrainingsView: React.FC = () => {
     exportToCsv(
       `sedute_individuali_${new Date().toISOString().slice(0, 10)}.csv`,
       ['Data', 'Atleta', 'Tipo', 'Durata (min)', 'RPE', 'Esercizi', 'Note', 'Verificato'],
-      individualLogs.map(log => [
+      visibleLogs.map(log => [
         log.date,
         `"${log.playerName}"`,
         `"${log.type}"`,
@@ -137,7 +142,7 @@ export const IndividualTrainingsView: React.FC = () => {
             <div className="flex items-center gap-2">
               <h2 className="text-[#E0E0E1] font-bold text-lg font-serif">Allenamenti Individuali & Schede Palestra</h2>
               <span className="px-2.5 py-0.5 bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40 text-xs font-bold rounded-full">
-                {individualLogs.length} Registrati
+                {visibleLogs.length} Registrati
               </span>
             </div>
             <p className="text-xs text-gray-400">
@@ -168,7 +173,7 @@ export const IndividualTrainingsView: React.FC = () => {
 
       {/* Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {individualLogs.map(log => (
+        {visibleLogs.map(log => (
           <div key={log.id} className="bg-[#121214] border border-[#2A2A2E] hover:border-[#D4AF37]/40 rounded-xl p-5 shadow-xl space-y-3 transition-all">
             <div className="flex items-start justify-between">
               <div>
@@ -233,7 +238,7 @@ export const IndividualTrainingsView: React.FC = () => {
           </div>
         ))}
 
-        {individualLogs.length === 0 && (
+        {visibleLogs.length === 0 && (
           <div className="col-span-full py-12 text-center bg-[#121214] border border-[#2A2A2E] rounded-xl">
             <Dumbbell className="w-10 h-10 text-gray-600 mx-auto mb-2" />
             <p className="text-[#E0E0E1] font-bold text-base font-serif">Nessun Allenamento Individuale Registrato</p>

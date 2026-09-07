@@ -49,7 +49,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   const { currentUser, staffUsers, logout } = useAuth();
   const [showRoleMenu, setShowRoleMenu] = useState(false);
 
-  const activeInjuriesCount = injuries.filter(i => i.status !== 'cleared').length;
+  const isStaff = currentUser?.role !== 'player';
+  // Ogni atleta vede solo il conteggio del proprio report infortuni; lo staff vede tutta la rosa.
+  const activeInjuriesCount = (isStaff ? injuries : injuries.filter(i => i.playerId === currentUser?.id))
+    .filter(i => i.status !== 'cleared').length;
   const activePhysioNotesCount = physioNotes.length;
   const unreadNotifsCount = notifications.filter(n => currentUser && !n.readBy.includes(currentUser.id)).length;
   const totalPlayersCount = players.length;
