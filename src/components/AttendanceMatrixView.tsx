@@ -39,14 +39,6 @@ const getMondayOfWeek = (dateStr: string): Date => {
   return d;
 };
 
-// Sunday (start) of the week containing the given YYYY-MM-DD date — the
-// attendance matrix groups sessions week-by-week starting on Sunday.
-const getSundayOfWeek = (dateStr: string): Date => {
-  const d = new Date(`${dateStr}T00:00:00`);
-  d.setDate(d.getDate() - d.getDay());
-  return d;
-};
-
 const toDateKey = (d: Date): string => d.toISOString().slice(0, 10);
 
 const formatItDate = (d: Date): string => d.toLocaleDateString('it-IT', { day: '2-digit', month: 'long' });
@@ -70,7 +62,7 @@ export const AttendanceMatrixView: React.FC = () => {
   const [selectedDepartment, setSelectedDepartment] = useState<'all' | 'avanti' | 'trequarti'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSessionId, setSelectedSessionId] = useState<string>(sessions[0]?.id || '');
-  const [weekStart, setWeekStart] = useState<Date>(() => getSundayOfWeek(new Date().toISOString().slice(0, 10)));
+  const [weekStart, setWeekStart] = useState<Date>(() => getMondayOfWeek(new Date().toISOString().slice(0, 10)));
   const [editingCell, setEditingCell] = useState<{
     recordId: string;
     sessionId: string;
@@ -109,7 +101,7 @@ export const AttendanceMatrixView: React.FC = () => {
     return d;
   }, [weekStart]);
 
-  // Sessions of the selected week only (Sunday to Saturday) — the columns shown in the matrix
+  // Sessions of the selected week only (Monday to Sunday) — the columns shown in the matrix
   const weekSessions = useMemo(() => {
     return allSessionsSorted.filter(s => {
       const d = new Date(`${s.date}T00:00:00`);
@@ -129,9 +121,9 @@ export const AttendanceMatrixView: React.FC = () => {
     return d;
   });
 
-  const goToCurrentWeek = () => setWeekStart(getSundayOfWeek(new Date().toISOString().slice(0, 10)));
+  const goToCurrentWeek = () => setWeekStart(getMondayOfWeek(new Date().toISOString().slice(0, 10)));
 
-  const isCurrentWeek = toDateKey(weekStart) === toDateKey(getSundayOfWeek(new Date().toISOString().slice(0, 10)));
+  const isCurrentWeek = toDateKey(weekStart) === toDateKey(getMondayOfWeek(new Date().toISOString().slice(0, 10)));
 
   // Calculate overall attendance stats
   const stats = useMemo(() => {
@@ -544,7 +536,7 @@ export const AttendanceMatrixView: React.FC = () => {
               {formatItDate(weekStart)} – {formatItDate(weekEnd)}
             </p>
             <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-0.5">
-              Settimana da Domenica a Sabato · {weekSessions.length} {weekSessions.length === 1 ? 'sessione' : 'sessioni'}
+              Settimana da Lunedì a Domenica · {weekSessions.length} {weekSessions.length === 1 ? 'sessione' : 'sessioni'}
             </p>
           </div>
 
