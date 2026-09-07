@@ -75,6 +75,16 @@ export const IndividualTrainingsView: React.FC = () => {
     }
   };
 
+  // Scheda di dettaglio atleta aperta dal coach cliccando un nome nel
+  // riepilogo settimanale; si chiude con la X o cliccando fuori.
+  const [detailPlayerId, setDetailPlayerId] = useState<string | null>(null);
+  const detailPlayer = detailPlayerId ? players.find(p => p.id === detailPlayerId) || null : null;
+  const detailPlayerLogs = detailPlayerId
+    ? individualLogs
+        .filter(l => l.playerId === detailPlayerId)
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    : [];
+
   const [showModal, setShowModal] = useState(false);
   const [editingLog, setEditingLog] = useState<IndividualTrainingLog | null>(null);
   const [selectedPlayerId, setSelectedPlayerId] = useState(defaultPlayerId);
@@ -249,21 +259,24 @@ export const IndividualTrainingsView: React.FC = () => {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
             {squadWeeklyProgress.map(({ player, count }) => (
-              <div
+              <button
                 key={player.id}
-                className={`flex items-center justify-between gap-3 px-3 py-2 rounded-lg border text-xs ${
+                type="button"
+                onClick={() => setDetailPlayerId(player.id)}
+                className={`flex items-center justify-between gap-3 px-3 py-2 rounded-lg border text-xs text-left transition-colors ${
                   count >= WEEKLY_MIN_EXTRA_TRAININGS
-                    ? 'bg-emerald-950/20 border-emerald-500/30'
-                    : 'bg-amber-950/20 border-amber-500/30'
+                    ? 'bg-emerald-950/20 border-emerald-500/30 hover:bg-emerald-950/40'
+                    : 'bg-amber-950/20 border-amber-500/30 hover:bg-amber-950/40'
                 }`}
+                title="Apri la scheda allenamenti dell'atleta"
               >
-                <span className="text-gray-300 truncate">
+                <span className="text-gray-300 truncate underline decoration-dotted underline-offset-2">
                   #{player.jerseyNumber || '-'} {player.name}
                 </span>
                 <span className={`font-bold whitespace-nowrap ${count >= WEEKLY_MIN_EXTRA_TRAININGS ? 'text-emerald-400' : 'text-amber-400'}`}>
                   {count} / {WEEKLY_MIN_EXTRA_TRAININGS}
                 </span>
-              </div>
+              </button>
             ))}
 
             {squadWeeklyProgress.length === 0 && (
@@ -484,6 +497,85 @@ export const IndividualTrainingsView: React.FC = () => {
 
             </form>
 
+          </div>
+        </div>
+      )}
+
+      {/* Athlete Detail Modal (staff only, opened from the weekly progress panel) */}
+      {detailPlayer && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in"
+          onClick={() => setDetailPlayerId(null)}
+        >
+          <div
+            className="bg-[#121214] border border-[#2A2A2E] rounded-xl w-full max-w-2xl p-6 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-[#2A2A2E] pb-3">
+              <div>
+                <h3 className="text-[#E0E0E1] font-bold text-base font-serif flex items-center gap-2">
+                  <User className="w-5 h-5 text-[#D4AF37]" />
+                  #{detailPlayer.jerseyNumber || '-'} {detailPlayer.name}
+                </h3>
+                <p className="text-[11px] text-gray-400 mt-0.5">
+                  {detailPlayerLogs.length} {detailPlayerLogs.length === 1 ? 'allenamento extra registrato' : 'allenamenti extra registrati'}
+                </p>
+              </div>
+              <button
+                onClick={() => setDetailPlayerId(null)}
+                className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-[#1D1D21]"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {detailPlayerLogs.map(log => (
+                <div key={log.id} className="bg-[#1D1D21] border border-[#2A2A2E] rounded-lg p-3 text-xs space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#D4AF37]">{log.type}</span>
+                      <h4 className="text-sm font-bold text-[#E0E0E1]">{log.title}</h4>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="font-black text-[#D4AF37]">RPE {log.perceivedEffort}/10</span>
+                      <p className="text-[10px] text-gray-400 flex items-center gap-1 justify-end mt-0.5">
+                        <Clock className="w-3 h-3" />
+                        {log.durationMin} min
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-gray-300">{log.exercisesDone}</p>
+                  {log.notes && <p className="text-gray-400 italic">"{log.notes}"</p>}
+                  <div className="flex items-center justify-between pt-1 border-t border-[#2A2A2E] text-gray-400">
+                    <span>{log.date}</span>
+                    {log.verifiedByCoach ? (
+                      <span className="flex items-center gap-1 text-emerald-400 font-medium">
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        Verificato
+                      </span>
+                    ) : (
+                      <span className="text-[#D4AF37]/80">Da verificare</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {detailPlayerLogs.length === 0 && (
+                <p className="text-xs text-gray-500 italic text-center py-6">
+                  Nessun allenamento extra registrato per questa atleta.
+                </p>
+              )}
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-[#2A2A2E]">
+              <button
+                onClick={() => setDetailPlayerId(null)}
+                className="px-4 py-2 bg-[#1D1D21] hover:bg-[#26262B] text-gray-300 font-semibold rounded-lg border border-[#2A2A2E] text-xs"
+              >
+                Chiudi
+              </button>
+            </div>
           </div>
         </div>
       )}
