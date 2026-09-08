@@ -21,7 +21,14 @@ import {
 export const SessionManagementView: React.FC = () => {
   const { sessions, addOrUpdateSession, deleteSession, generateGoogleCalendarUrl, exportToIcsFile, isSyncing } = useData();
   const { currentUser } = useAuth();
-  const isStaff = currentUser?.role !== 'player';
+  // Preparatrici atletiche e fisioterapiste vedono le sessioni in sola
+  // lettura come le atlete: non creano/modificano/eliminano allenamenti,
+  // che restano di competenza di coach e direzione tecnica.
+  const canManageSessions = !!currentUser?.isAdmin || (
+    currentUser?.role !== 'player' &&
+    currentUser?.role !== 'athletic_trainer' &&
+    currentUser?.role !== 'physiotherapist'
+  );
 
   // Sessioni ordinate dalla più recente alla meno recente (per data e orario)
   const sortedSessions = [...sessions].sort((a, b) =>
@@ -143,7 +150,7 @@ export const SessionManagementView: React.FC = () => {
             <span>Scarica Calendario Completo (.ICS)</span>
           </button>
 
-          {isStaff && (
+          {canManageSessions && (
             <button
               id="btn-create-new-session"
               onClick={() => { resetForm(); setShowModal(true); }}
@@ -246,7 +253,7 @@ export const SessionManagementView: React.FC = () => {
                   <span>Google Calendar</span>
                 </a>
 
-                {isStaff && (
+                {canManageSessions && (
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => startEdit(s)}
@@ -276,7 +283,7 @@ export const SessionManagementView: React.FC = () => {
             <p className="text-xs text-gray-400 max-w-md mx-auto mb-4">
               Non ci sono ancora allenamenti programmati. Crea la prima seduta per pianificare focus, orari e sincronizzazione con Google Calendar / iCal.
             </p>
-            {isStaff && (
+            {canManageSessions && (
               <button
                 onClick={() => { resetForm(); setShowModal(true); }}
                 className="px-4 py-2 bg-[#D4AF37] hover:bg-[#C09F30] text-black text-xs font-bold rounded-lg shadow transition-colors inline-flex items-center gap-1.5"
