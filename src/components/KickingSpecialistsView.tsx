@@ -160,66 +160,31 @@ export const KickingSpecialistsView: React.FC = () => {
   };
 
   const [selectedPlayerId, setSelectedPlayerId] = useState(kickerCandidates[0]?.id || 'p-26');
-  const [durationMin, setDurationMin] = useState(45);
-  const [piazzatiTotal, setPiazzatiTotal] = useState(25);
-  const [piazzatiSuccess, setPiazzatiSuccess] = useState(22);
-  const [dropTotal, setDropTotal] = useState(5);
-  const [dropSuccess, setDropSuccess] = useState(4);
-  const [spostamentoTotal, setSpostamentoTotal] = useState(6);
-  const [spostamentoSuccess, setSpostamentoSuccess] = useState(5);
-  const [upAndUnderTotal, setUpAndUnderTotal] = useState(4);
-  const [upAndUnderSuccess, setUpAndUnderSuccess] = useState(3);
-  const [zoneCentro, setZoneCentro] = useState(90);
-  const [zoneDestra, setZoneDestra] = useState(85);
-  const [zoneSinistra, setZoneSinistra] = useState(80);
   const [notes, setNotes] = useState('');
 
   const resetKickForm = () => {
     setSelectedPlayerId(kickerCandidates[0]?.id || 'p-26');
-    setDurationMin(45);
-    setPiazzatiTotal(25);
-    setPiazzatiSuccess(22);
-    setDropTotal(5);
-    setDropSuccess(4);
-    setSpostamentoTotal(6);
-    setSpostamentoSuccess(5);
-    setUpAndUnderTotal(4);
-    setUpAndUnderSuccess(3);
-    setZoneCentro(90);
-    setZoneDestra(85);
-    setZoneSinistra(80);
     setNotes('');
   };
 
   const startEditKick = (ks: KickingSession) => {
     setEditingKick(ks);
 
+    setAthleteDurationMin(ks.durationMin);
+    setTestSinistraSuccess(ks.fieldZoneStats ? String(ks.fieldZoneStats.sinistra.success) : '');
+    setTestSinistraTotal(ks.fieldZoneStats ? String(ks.fieldZoneStats.sinistra.total) : '');
+    setTestCentroSuccess(ks.fieldZoneStats ? String(ks.fieldZoneStats.centro.success) : '');
+    setTestCentroTotal(ks.fieldZoneStats ? String(ks.fieldZoneStats.centro.total) : '');
+    setTestDestraSuccess(ks.fieldZoneStats ? String(ks.fieldZoneStats.destra.success) : '');
+    setTestDestraTotal(ks.fieldZoneStats ? String(ks.fieldZoneStats.destra.total) : '');
+
     if (!isStaff) {
-      setAthleteDurationMin(ks.durationMin);
       setAthleteNotes(ks.notes || '');
-      setTestSinistraSuccess(ks.fieldZoneStats ? String(ks.fieldZoneStats.sinistra.success) : '');
-      setTestSinistraTotal(ks.fieldZoneStats ? String(ks.fieldZoneStats.sinistra.total) : '');
-      setTestCentroSuccess(ks.fieldZoneStats ? String(ks.fieldZoneStats.centro.success) : '');
-      setTestCentroTotal(ks.fieldZoneStats ? String(ks.fieldZoneStats.centro.total) : '');
-      setTestDestraSuccess(ks.fieldZoneStats ? String(ks.fieldZoneStats.destra.success) : '');
-      setTestDestraTotal(ks.fieldZoneStats ? String(ks.fieldZoneStats.destra.total) : '');
       setShowModal(true);
       return;
     }
 
     setSelectedPlayerId(ks.playerId);
-    setDurationMin(ks.durationMin);
-    setPiazzatiTotal(ks.stats.piazzati.total);
-    setPiazzatiSuccess(ks.stats.piazzati.success);
-    setDropTotal(ks.stats.drop.total);
-    setDropSuccess(ks.stats.drop.success);
-    setSpostamentoTotal(ks.stats.spostamento.total);
-    setSpostamentoSuccess(ks.stats.spostamento.success);
-    setUpAndUnderTotal(ks.stats.upAndUnder.total);
-    setUpAndUnderSuccess(ks.stats.upAndUnder.success);
-    setZoneCentro(ks.fieldZoneSuccess?.centro ?? 90);
-    setZoneDestra(ks.fieldZoneSuccess?.destra ?? 85);
-    setZoneSinistra(ks.fieldZoneSuccess?.sinistra ?? 80);
     setNotes(ks.notes || '');
     setShowModal(true);
   };
@@ -235,29 +200,36 @@ export const KickingSpecialistsView: React.FC = () => {
     const kicker = players.find(p => p.id === selectedPlayerId);
     if (!kicker) return;
 
-    const totalKicks = piazzatiTotal + dropTotal + spostamentoTotal + upAndUnderTotal;
-    const successfulKicks = piazzatiSuccess + dropSuccess + spostamentoSuccess + upAndUnderSuccess;
+    const toCount = (v: string) => Math.max(0, parseInt(v) || 0);
+    const pct = (success: number, total: number) => Math.round((success / total) * 100) || 0;
+
+    const emptyStats = {
+      piazzati: { total: 0, success: 0 },
+      drop: { total: 0, success: 0 },
+      spostamento: { total: 0, success: 0 },
+      upAndUnder: { total: 0, success: 0 }
+    };
+
+    const sinistra = { success: toCount(testSinistraSuccess), total: toCount(testSinistraTotal) };
+    const centro = { success: toCount(testCentroSuccess), total: toCount(testCentroTotal) };
+    const destra = { success: toCount(testDestraSuccess), total: toCount(testDestraTotal) };
 
     const payload = {
       playerId: kicker.id,
       playerName: kicker.name,
       date: editingKick ? editingKick.date : new Date().toISOString().slice(0, 10),
-      durationMin,
-      totalKicks,
-      successfulKicks,
-      stats: {
-        piazzati: { total: piazzatiTotal, success: piazzatiSuccess },
-        drop: { total: dropTotal, success: dropSuccess },
-        spostamento: { total: spostamentoTotal, success: spostamentoSuccess },
-        upAndUnder: { total: upAndUnderTotal, success: upAndUnderSuccess }
-      },
+      durationMin: athleteDurationMin,
+      totalKicks: 0,
+      successfulKicks: 0,
+      stats: emptyStats,
+      fieldZoneStats: { sinistra, centro, destra },
       fieldZoneSuccess: {
-        centro: zoneCentro,
-        destra: zoneDestra,
-        sinistra: zoneSinistra
+        sinistra: pct(sinistra.success, sinistra.total),
+        centro: pct(centro.success, centro.total),
+        destra: pct(destra.success, destra.total)
       },
       notes: notes.trim() ? notes : undefined,
-      sessionType: 'full' as const
+      sessionType: 'placed_kicks_test' as const
     };
 
     if (editingKick) {
@@ -712,88 +684,82 @@ export const KickingSpecialistsView: React.FC = () => {
                 </select>
               </div>
 
-              {/* Counters */}
-              <div className="grid grid-cols-2 gap-3 bg-[#1D1D21] p-3 rounded-lg border border-[#2A2A2E]">
+              <div>
+                <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[11px]">Durata (minuti):</label>
+                <input
+                  type="number"
+                  min={1}
+                  required
+                  value={athleteDurationMin}
+                  onChange={(e) => setAthleteDurationMin(parseInt(e.target.value) || 0)}
+                  className="w-full px-3 py-2 bg-[#1D1D21] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] focus:outline-none focus:border-[#D4AF37]"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-3 bg-[#1D1D21] p-3 rounded-lg border border-[#2A2A2E]">
                 <div>
-                  <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[11px]">Piazzati Riusciti / Totali:</label>
-                  <div className="flex items-center gap-2">
+                  <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[10px]">Sinistra (Riusciti/Tot):</label>
+                  <div className="flex items-center gap-1">
                     <input
                       type="number"
-                      min="0"
-                      value={piazzatiSuccess}
-                      onChange={(e) => setPiazzatiSuccess(parseInt(e.target.value) || 0)}
-                      className="w-16 px-2 py-1.5 bg-[#121214] border border-[#2A2A2E] rounded-lg text-emerald-400 font-bold text-center"
+                      min={0}
+                      placeholder="0"
+                      value={testSinistraSuccess}
+                      onChange={(e) => setTestSinistraSuccess(e.target.value)}
+                      className="w-full min-w-0 px-2 py-1.5 bg-[#121214] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] placeholder-gray-600 font-bold text-center"
                     />
                     <span className="text-gray-400 font-bold">/</span>
                     <input
                       type="number"
-                      min="1"
-                      value={piazzatiTotal}
-                      onChange={(e) => setPiazzatiTotal(parseInt(e.target.value) || 1)}
-                      className="w-16 px-2 py-1.5 bg-[#121214] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] font-bold text-center"
+                      min={0}
+                      placeholder="0"
+                      value={testSinistraTotal}
+                      onChange={(e) => setTestSinistraTotal(e.target.value)}
+                      className="w-full min-w-0 px-2 py-1.5 bg-[#121214] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] placeholder-gray-600 font-bold text-center"
                     />
                   </div>
                 </div>
-
                 <div>
-                  <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[11px]">Drop Goal Riusciti / Totali:</label>
-                  <div className="flex items-center gap-2">
+                  <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[10px]">Centro (Riusciti/Tot):</label>
+                  <div className="flex items-center gap-1">
                     <input
                       type="number"
-                      min="0"
-                      value={dropSuccess}
-                      onChange={(e) => setDropSuccess(parseInt(e.target.value) || 0)}
-                      className="w-16 px-2 py-1.5 bg-[#121214] border border-[#2A2A2E] rounded-lg text-[#D4AF37] font-bold text-center"
+                      min={0}
+                      placeholder="0"
+                      value={testCentroSuccess}
+                      onChange={(e) => setTestCentroSuccess(e.target.value)}
+                      className="w-full min-w-0 px-2 py-1.5 bg-[#121214] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] placeholder-gray-600 font-bold text-center"
                     />
                     <span className="text-gray-400 font-bold">/</span>
                     <input
                       type="number"
-                      min="1"
-                      value={dropTotal}
-                      onChange={(e) => setDropTotal(parseInt(e.target.value) || 1)}
-                      className="w-16 px-2 py-1.5 bg-[#121214] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] font-bold text-center"
+                      min={0}
+                      placeholder="0"
+                      value={testCentroTotal}
+                      onChange={(e) => setTestCentroTotal(e.target.value)}
+                      className="w-full min-w-0 px-2 py-1.5 bg-[#121214] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] placeholder-gray-600 font-bold text-center"
                     />
                   </div>
                 </div>
-
                 <div>
-                  <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[11px]">Liberazione 50-22 (Riusciti/Tot):</label>
-                  <div className="flex items-center gap-2">
+                  <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[10px]">Destra (Riusciti/Tot):</label>
+                  <div className="flex items-center gap-1">
                     <input
                       type="number"
-                      min="0"
-                      value={spostamentoSuccess}
-                      onChange={(e) => setSpostamentoSuccess(parseInt(e.target.value) || 0)}
-                      className="w-16 px-2 py-1.5 bg-[#121214] border border-[#2A2A2E] rounded-lg text-blue-400 font-bold text-center"
+                      min={0}
+                      placeholder="0"
+                      value={testDestraSuccess}
+                      onChange={(e) => setTestDestraSuccess(e.target.value)}
+                      className="w-full min-w-0 px-2 py-1.5 bg-[#121214] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] placeholder-gray-600 font-bold text-center"
                     />
                     <span className="text-gray-400 font-bold">/</span>
                     <input
                       type="number"
-                      min="1"
-                      value={spostamentoTotal}
-                      onChange={(e) => setSpostamentoTotal(parseInt(e.target.value) || 1)}
-                      className="w-16 px-2 py-1.5 bg-[#121214] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] font-bold text-center"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[11px]">Box Kick / Up&Under:</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      min="0"
-                      value={upAndUnderSuccess}
-                      onChange={(e) => setUpAndUnderSuccess(parseInt(e.target.value) || 0)}
-                      className="w-16 px-2 py-1.5 bg-[#121214] border border-[#2A2A2E] rounded-lg text-purple-400 font-bold text-center"
-                    />
-                    <span className="text-gray-400 font-bold">/</span>
-                    <input
-                      type="number"
-                      min="1"
-                      value={upAndUnderTotal}
-                      onChange={(e) => setUpAndUnderTotal(parseInt(e.target.value) || 1)}
-                      className="w-16 px-2 py-1.5 bg-[#121214] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] font-bold text-center"
+                      min={0}
+                      placeholder="0"
+                      value={testDestraTotal}
+                      onChange={(e) => setTestDestraTotal(e.target.value)}
+                      className="w-full min-w-0 px-2 py-1.5 bg-[#121214] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] placeholder-gray-600 font-bold text-center"
                     />
                   </div>
                 </div>
