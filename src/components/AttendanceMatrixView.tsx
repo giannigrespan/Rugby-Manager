@@ -148,6 +148,30 @@ export const AttendanceMatrixView: React.FC = () => {
     return { totalP, totalAG, totalAI, totalDIF, totalRIT, presentRate, totalRecords };
   }, [attendances, isStaff, currentUser]);
 
+  // Weekly presence rate split by department (avanti/trequarti), for the currently viewed week only
+  const weekDepartmentRates = useMemo(() => {
+    const weekSessionIds = new Set(weekSessions.map(s => s.id));
+    const playerDept = new Map<string, RugbyDepartment>(players.map(p => [p.id, p.department]));
+
+    const counts: Record<RugbyDepartment, { present: number; total: number }> = {
+      avanti: { present: 0, total: 0 },
+      trequarti: { present: 0, total: 0 },
+      staff: { present: 0, total: 0 }
+    };
+
+    attendances.forEach(a => {
+      if (!weekSessionIds.has(a.sessionId)) return;
+      const dept = playerDept.get(a.playerId);
+      if (!dept || !counts[dept]) return;
+      counts[dept].total++;
+      if (a.status === 'present' || a.status === 'late') counts[dept].present++;
+    });
+
+    const pct = (d: RugbyDepartment) => counts[d].total > 0 ? Math.round((counts[d].present / counts[d].total) * 100) : 0;
+
+    return { avanti: pct('avanti'), trequarti: pct('trequarti') };
+  }, [attendances, players, weekSessions]);
+
   // Helper for single player presence percentage
   const getPlayerPresencePct = (playerId: string) => {
     const playerAtts = attendances.filter(a => a.playerId === playerId);
@@ -550,15 +574,26 @@ export const AttendanceMatrixView: React.FC = () => {
           </button>
         </div>
 
-        {!isCurrentWeek && (
-          <button
-            id="btn-current-week"
-            onClick={goToCurrentWeek}
-            className="px-3 py-1.5 bg-[#1D1D21] hover:bg-[#26262B] text-xs font-semibold text-[#D4AF37] rounded-lg border border-[#2A2A2E] transition-colors"
-          >
-            Settimana Corrente
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1D1D21] rounded-lg border border-[#2A2A2E]">
+            <span className="text-[10px] font-semibold text-[#D4AF37] uppercase tracking-wider">Avanti</span>
+            <span className="text-sm font-bold text-[#E0E0E1]">{weekDepartmentRates.avanti}%</span>
+          </div>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1D1D21] rounded-lg border border-[#2A2A2E]">
+            <span className="text-[10px] font-semibold text-purple-400 uppercase tracking-wider">Trequarti</span>
+            <span className="text-sm font-bold text-[#E0E0E1]">{weekDepartmentRates.trequarti}%</span>
+          </div>
+
+          {!isCurrentWeek && (
+            <button
+              id="btn-current-week"
+              onClick={goToCurrentWeek}
+              className="px-3 py-1.5 bg-[#1D1D21] hover:bg-[#26262B] text-xs font-semibold text-[#D4AF37] rounded-lg border border-[#2A2A2E] transition-colors"
+            >
+              Settimana Corrente
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Main Interactive Matrix Table */}
