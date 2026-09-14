@@ -447,7 +447,7 @@ export const KickingSpecialistsView: React.FC = () => {
               )}
 
               {ks.notes && (
-                <p className="text-xs text-gray-400 italic">"{ks.notes}"</p>
+                <p className="text-xs text-blue-400 italic">"{ks.notes}"</p>
               )}
             </div>
           );
