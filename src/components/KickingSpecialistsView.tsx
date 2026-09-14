@@ -34,6 +34,8 @@ export const KickingSpecialistsView: React.FC = () => {
   const { players, kickingSessions, addKickingSession, updateKickingSession, deleteKickingSession, isSyncing } = useData();
   const { currentUser } = useAuth();
   const isStaff = currentUser?.role !== 'player';
+  // La sessione calci è riservata al reparto trequarti.
+  const isTrequarti = currentUser?.department === 'trequarti';
 
   // Ogni atleta vede solo la propria sessione di calci e specialisti; lo staff vede tutto.
   const visibleKickingSessions = isStaff
@@ -55,19 +57,6 @@ export const KickingSpecialistsView: React.FC = () => {
         .reduce((sum, ks) => sum + ks.durationMin, 0)
     : 0;
 
-  // Progresso settimanale di tutta la rosa, visibile solo allo staff: quanti
-  // minuti di lavoro al piede ha registrato ogni atleta questa settimana rispetto al minimo.
-  const squadWeeklyProgress = isStaff
-    ? [...players]
-        .map(p => ({
-          player: p,
-          minutes: kickingSessions
-            .filter(ks => ks.playerId === p.id && isInCurrentWeek(ks.date))
-            .reduce((sum, ks) => sum + ks.durationMin, 0)
-        }))
-        .sort((a, b) => a.minutes - b.minutes || a.player.name.localeCompare(b.player.name))
-    : [];
-
   const canEditKick = (ks: KickingSession) => isStaff || ks.playerId === currentUser?.id;
 
   const handleDeleteKick = (ks: KickingSession) => {
@@ -85,12 +74,11 @@ export const KickingSpecialistsView: React.FC = () => {
     p.position.includes('Estremo')
   );
 
-  // Form semplificato per le atlete: tempo di lavoro generico oppure test
-  // di precisione sui piazzati, con i conteggi riusciti/tentati per
-  // posizione (es. 15/20) invece di una percentuale. Stringhe vuote di
-  // default: nessun valore precompilato finché l'atleta non lo inserisce.
-  const [athleteMode, setAthleteMode] = useState<'generic' | 'test'>('generic');
-  const [athleteDurationMin, setAthleteDurationMin] = useState(30);
+  // Form atleta: tempo impiegato più il test di precisione sui piazzati,
+  // con i conteggi riusciti/tentati per zona campo (destra/centro/sinistra).
+  // Stringhe vuote di default: nessun valore precompilato finché l'atleta
+  // non lo inserisce.
+  const [athleteDurationMin, setAthleteDurationMin] = useState(45);
   const [athleteNotes, setAthleteNotes] = useState('');
   const [testSinistraSuccess, setTestSinistraSuccess] = useState('');
   const [testSinistraTotal, setTestSinistraTotal] = useState('');
@@ -100,8 +88,7 @@ export const KickingSpecialistsView: React.FC = () => {
   const [testDestraTotal, setTestDestraTotal] = useState('');
 
   const resetAthleteForm = () => {
-    setAthleteMode('generic');
-    setAthleteDurationMin(30);
+    setAthleteDurationMin(45);
     setAthleteNotes('');
     setTestSinistraSuccess('');
     setTestSinistraTotal('');
@@ -125,40 +112,27 @@ export const KickingSpecialistsView: React.FC = () => {
     const toCount = (v: string) => Math.max(0, parseInt(v) || 0);
     const pct = (success: number, total: number) => Math.round((success / total) * 100) || 0;
 
-    const payload = athleteMode === 'generic'
-      ? {
-          playerId: currentUser.id,
-          playerName: currentUser.name,
-          date: editingKick ? editingKick.date : new Date().toISOString().slice(0, 10),
-          durationMin: athleteDurationMin,
-          totalKicks: 0,
-          successfulKicks: 0,
-          stats: emptyStats,
-          notes: athleteNotes.trim() ? athleteNotes : undefined,
-          sessionType: 'generic' as const
-        }
-      : (() => {
-          const sinistra = { success: toCount(testSinistraSuccess), total: toCount(testSinistraTotal) };
-          const centro = { success: toCount(testCentroSuccess), total: toCount(testCentroTotal) };
-          const destra = { success: toCount(testDestraSuccess), total: toCount(testDestraTotal) };
-          return {
-            playerId: currentUser.id,
-            playerName: currentUser.name,
-            date: editingKick ? editingKick.date : new Date().toISOString().slice(0, 10),
-            durationMin: athleteDurationMin,
-            totalKicks: 0,
-            successfulKicks: 0,
-            stats: emptyStats,
-            fieldZoneStats: { sinistra, centro, destra },
-            fieldZoneSuccess: {
-              sinistra: pct(sinistra.success, sinistra.total),
-              centro: pct(centro.success, centro.total),
-              destra: pct(destra.success, destra.total)
-            },
-            notes: athleteNotes.trim() ? athleteNotes : undefined,
-            sessionType: 'placed_kicks_test' as const
-          };
-        })();
+    const sinistra = { success: toCount(testSinistraSuccess), total: toCount(testSinistraTotal) };
+    const centro = { success: toCount(testCentroSuccess), total: toCount(testCentroTotal) };
+    const destra = { success: toCount(testDestraSuccess), total: toCount(testDestraTotal) };
+
+    const payload = {
+      playerId: currentUser.id,
+      playerName: currentUser.name,
+      date: editingKick ? editingKick.date : new Date().toISOString().slice(0, 10),
+      durationMin: athleteDurationMin,
+      totalKicks: 0,
+      successfulKicks: 0,
+      stats: emptyStats,
+      fieldZoneStats: { sinistra, centro, destra },
+      fieldZoneSuccess: {
+        sinistra: pct(sinistra.success, sinistra.total),
+        centro: pct(centro.success, centro.total),
+        destra: pct(destra.success, destra.total)
+      },
+      notes: athleteNotes.trim() ? athleteNotes : undefined,
+      sessionType: 'placed_kicks_test' as const
+    };
 
     if (editingKick) {
       await updateKickingSession({ ...payload, id: editingKick.id });
@@ -206,7 +180,6 @@ export const KickingSpecialistsView: React.FC = () => {
     setEditingKick(ks);
 
     if (!isStaff) {
-      setAthleteMode(ks.sessionType === 'placed_kicks_test' ? 'test' : 'generic');
       setAthleteDurationMin(ks.durationMin);
       setAthleteNotes(ks.notes || '');
       setTestSinistraSuccess(ks.fieldZoneStats ? String(ks.fieldZoneStats.sinistra.success) : '');
@@ -332,23 +305,32 @@ export const KickingSpecialistsView: React.FC = () => {
             <Download className="w-3.5 h-3.5 text-[#D4AF37]" />
             <span>Esporta CSV</span>
           </button>
-          <button
-            id="btn-add-kicking-session"
-            onClick={() => {
-              if (isStaff) resetKickForm(); else resetAthleteForm();
-              setEditingKick(null);
-              setShowModal(true);
-            }}
-            className="px-4 py-2.5 bg-[#D4AF37] hover:bg-[#C09F30] text-black text-xs font-bold rounded-lg shadow-md flex items-center gap-2 transition-all active:scale-95"
-          >
-            <Plus className="w-4 h-4" />
-            <span>{isStaff ? 'Registra Sessione Calci (45m)' : 'Registra la Tua Sessione'}</span>
-          </button>
+          {(isStaff || isTrequarti) && (
+            <button
+              id="btn-add-kicking-session"
+              onClick={() => {
+                if (isStaff) resetKickForm(); else resetAthleteForm();
+                setEditingKick(null);
+                setShowModal(true);
+              }}
+              className="px-4 py-2.5 bg-[#D4AF37] hover:bg-[#C09F30] text-black text-xs font-bold rounded-lg shadow-md flex items-center gap-2 transition-all active:scale-95"
+            >
+              <Plus className="w-4 h-4" />
+              <span>{isStaff ? 'Registra Sessione Calci (45m)' : 'Registra la Tua Sessione'}</span>
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Weekly Minimum Compliance Banner (athlete only) */}
-      {!isStaff && (
+      {/* Sessione riservata al reparto trequarti */}
+      {!isStaff && !isTrequarti && (
+        <div className="bg-[#121214] border border-[#2A2A2E] rounded-xl p-4 text-xs text-gray-400">
+          La sessione calci è riservata alle atlete del reparto trequarti.
+        </div>
+      )}
+
+      {/* Weekly Minimum Compliance Banner (atleta trequarti) */}
+      {!isStaff && isTrequarti && (
         <div className={`rounded-xl p-4 shadow-xl flex items-center justify-between gap-3 border ${
           myWeeklyMinutes >= WEEKLY_MIN_KICKING_MINUTES
             ? 'bg-emerald-950/30 border-emerald-500/40'
@@ -374,41 +356,6 @@ export const KickingSpecialistsView: React.FC = () => {
               className={`h-full rounded-full ${myWeeklyMinutes >= WEEKLY_MIN_KICKING_MINUTES ? 'bg-emerald-500' : 'bg-amber-500'}`}
               style={{ width: `${Math.min(100, Math.round((myWeeklyMinutes / WEEKLY_MIN_KICKING_MINUTES) * 100))}%` }}
             />
-          </div>
-        </div>
-      )}
-
-      {/* Weekly Squad Progress Panel (staff only) */}
-      {isStaff && (
-        <div className="bg-[#121214] border border-[#2A2A2E] rounded-xl p-5 shadow-xl space-y-3">
-          <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-[#D4AF37]" />
-            <h3 className="text-xs font-bold text-gray-300 uppercase tracking-widest">
-              Minuti di Calci della Settimana (minimo {WEEKLY_MIN_KICKING_MINUTES}, Lunedì-Domenica)
-            </h3>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            {squadWeeklyProgress.map(({ player, minutes }) => (
-              <div
-                key={player.id}
-                className={`flex items-center justify-between gap-3 px-3 py-2 rounded-lg border text-xs ${
-                  minutes >= WEEKLY_MIN_KICKING_MINUTES
-                    ? 'bg-emerald-950/20 border-emerald-500/30'
-                    : 'bg-amber-950/20 border-amber-500/30'
-                }`}
-              >
-                <span className="text-gray-300 truncate">
-                  #{player.jerseyNumber || '-'} {player.name}
-                </span>
-                <span className={`font-bold whitespace-nowrap ${minutes >= WEEKLY_MIN_KICKING_MINUTES ? 'text-emerald-400' : 'text-amber-400'}`}>
-                  {minutes} / {WEEKLY_MIN_KICKING_MINUTES}
-                </span>
-              </div>
-            ))}
-
-            {squadWeeklyProgress.length === 0 && (
-              <p className="text-xs text-gray-500 italic col-span-full">Nessuna atleta in rosa.</p>
-            )}
           </div>
         </div>
       )}
@@ -586,34 +533,6 @@ export const KickingSpecialistsView: React.FC = () => {
               <form onSubmit={handleCreateAthleteKicking} className="space-y-4 text-xs">
 
                 <div>
-                  <label className="block font-semibold text-gray-300 mb-1.5 uppercase tracking-wider text-[11px]">Tipo di Sessione:</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setAthleteMode('generic')}
-                      className={`py-2.5 px-3 rounded-lg text-xs font-bold border transition-all text-center ${
-                        athleteMode === 'generic'
-                          ? 'bg-[#D4AF37] text-black border-[#D4AF37] shadow-md'
-                          : 'bg-[#1D1D21] text-gray-300 border-[#2A2A2E] hover:bg-[#26262B]'
-                      }`}
-                    >
-                      Tempo di Lavoro Generico
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAthleteMode('test')}
-                      className={`py-2.5 px-3 rounded-lg text-xs font-bold border transition-all text-center ${
-                        athleteMode === 'test'
-                          ? 'bg-[#D4AF37] text-black border-[#D4AF37] shadow-md'
-                          : 'bg-[#1D1D21] text-gray-300 border-[#2A2A2E] hover:bg-[#26262B]'
-                      }`}
-                    >
-                      Test Calci Piazzati
-                    </button>
-                  </div>
-                </div>
-
-                <div>
                   <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[11px]">Durata (minuti):</label>
                   <input
                     type="number"
@@ -625,76 +544,74 @@ export const KickingSpecialistsView: React.FC = () => {
                   />
                 </div>
 
-                {athleteMode === 'test' && (
-                  <div className="grid grid-cols-3 gap-3 bg-[#1D1D21] p-3 rounded-lg border border-[#2A2A2E]">
-                    <div>
-                      <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[10px]">Sinistra (Riusciti/Tot):</label>
-                      <div className="flex items-center gap-1">
-                        <input
-                          type="number"
-                          min={0}
-                          placeholder="0"
-                          value={testSinistraSuccess}
-                          onChange={(e) => setTestSinistraSuccess(e.target.value)}
-                          className="w-full min-w-0 px-2 py-1.5 bg-[#121214] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] placeholder-gray-600 font-bold text-center"
-                        />
-                        <span className="text-gray-400 font-bold">/</span>
-                        <input
-                          type="number"
-                          min={0}
-                          placeholder="0"
-                          value={testSinistraTotal}
-                          onChange={(e) => setTestSinistraTotal(e.target.value)}
-                          className="w-full min-w-0 px-2 py-1.5 bg-[#121214] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] placeholder-gray-600 font-bold text-center"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[10px]">Centro (Riusciti/Tot):</label>
-                      <div className="flex items-center gap-1">
-                        <input
-                          type="number"
-                          min={0}
-                          placeholder="0"
-                          value={testCentroSuccess}
-                          onChange={(e) => setTestCentroSuccess(e.target.value)}
-                          className="w-full min-w-0 px-2 py-1.5 bg-[#121214] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] placeholder-gray-600 font-bold text-center"
-                        />
-                        <span className="text-gray-400 font-bold">/</span>
-                        <input
-                          type="number"
-                          min={0}
-                          placeholder="0"
-                          value={testCentroTotal}
-                          onChange={(e) => setTestCentroTotal(e.target.value)}
-                          className="w-full min-w-0 px-2 py-1.5 bg-[#121214] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] placeholder-gray-600 font-bold text-center"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[10px]">Destra (Riusciti/Tot):</label>
-                      <div className="flex items-center gap-1">
-                        <input
-                          type="number"
-                          min={0}
-                          placeholder="0"
-                          value={testDestraSuccess}
-                          onChange={(e) => setTestDestraSuccess(e.target.value)}
-                          className="w-full min-w-0 px-2 py-1.5 bg-[#121214] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] placeholder-gray-600 font-bold text-center"
-                        />
-                        <span className="text-gray-400 font-bold">/</span>
-                        <input
-                          type="number"
-                          min={0}
-                          placeholder="0"
-                          value={testDestraTotal}
-                          onChange={(e) => setTestDestraTotal(e.target.value)}
-                          className="w-full min-w-0 px-2 py-1.5 bg-[#121214] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] placeholder-gray-600 font-bold text-center"
-                        />
-                      </div>
+                <div className="grid grid-cols-3 gap-3 bg-[#1D1D21] p-3 rounded-lg border border-[#2A2A2E]">
+                  <div>
+                    <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[10px]">Sinistra (Riusciti/Tot):</label>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min={0}
+                        placeholder="0"
+                        value={testSinistraSuccess}
+                        onChange={(e) => setTestSinistraSuccess(e.target.value)}
+                        className="w-full min-w-0 px-2 py-1.5 bg-[#121214] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] placeholder-gray-600 font-bold text-center"
+                      />
+                      <span className="text-gray-400 font-bold">/</span>
+                      <input
+                        type="number"
+                        min={0}
+                        placeholder="0"
+                        value={testSinistraTotal}
+                        onChange={(e) => setTestSinistraTotal(e.target.value)}
+                        className="w-full min-w-0 px-2 py-1.5 bg-[#121214] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] placeholder-gray-600 font-bold text-center"
+                      />
                     </div>
                   </div>
-                )}
+                  <div>
+                    <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[10px]">Centro (Riusciti/Tot):</label>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min={0}
+                        placeholder="0"
+                        value={testCentroSuccess}
+                        onChange={(e) => setTestCentroSuccess(e.target.value)}
+                        className="w-full min-w-0 px-2 py-1.5 bg-[#121214] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] placeholder-gray-600 font-bold text-center"
+                      />
+                      <span className="text-gray-400 font-bold">/</span>
+                      <input
+                        type="number"
+                        min={0}
+                        placeholder="0"
+                        value={testCentroTotal}
+                        onChange={(e) => setTestCentroTotal(e.target.value)}
+                        className="w-full min-w-0 px-2 py-1.5 bg-[#121214] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] placeholder-gray-600 font-bold text-center"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[10px]">Destra (Riusciti/Tot):</label>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min={0}
+                        placeholder="0"
+                        value={testDestraSuccess}
+                        onChange={(e) => setTestDestraSuccess(e.target.value)}
+                        className="w-full min-w-0 px-2 py-1.5 bg-[#121214] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] placeholder-gray-600 font-bold text-center"
+                      />
+                      <span className="text-gray-400 font-bold">/</span>
+                      <input
+                        type="number"
+                        min={0}
+                        placeholder="0"
+                        value={testDestraTotal}
+                        onChange={(e) => setTestDestraTotal(e.target.value)}
+                        className="w-full min-w-0 px-2 py-1.5 bg-[#121214] border border-[#2A2A2E] rounded-lg text-[#E0E0E1] placeholder-gray-600 font-bold text-center"
+                      />
+                    </div>
+                  </div>
+                </div>
 
                 <div>
                   <label className="block font-semibold text-gray-300 mb-1 uppercase tracking-wider text-[11px]">Note (facoltativo):</label>
