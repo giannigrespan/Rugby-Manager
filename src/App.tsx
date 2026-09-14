@@ -5,6 +5,7 @@ import { DataProvider, useData } from './context/DataContext';
 import { Sidebar, TabType } from './components/Sidebar';
 import { LandingView } from './components/LandingView';
 import { AttendanceMatrixView } from './components/AttendanceMatrixView';
+import { DailyAttendanceSummaryView } from './components/DailyAttendanceSummaryView';
 import { RpeAndFocusView } from './components/RpeAndFocusView';
 import { InjuryReportView } from './components/InjuryReportView';
 import { PhysioNotesView } from './components/PhysioNotesView';
@@ -104,6 +105,7 @@ const AppContent: React.FC = () => {
     switch (activeTab) {
       case 'home': return 'Rugby Villorba Team Manager';
       case 'presenze': return '1. Matrice Presenze & Modifiche Staff';
+      case 'riepilogo_presenze': return '1b. Riepilogo Giornaliero Presenze — Avanti & Trequarti';
       case 'rpe_focus': return '2. Monitoraggio RPE & Focus Gara';
       case 'infortuni': return '3. Report Fastidi & Infortuni / HIA';
       case 'fisioterapia': return '4. Note Fisioterapia & Cartelle Cliniche';
@@ -244,6 +246,7 @@ const AppContent: React.FC = () => {
         {/* Main Workspace Area */}
         <main className="flex-1 p-3 sm:p-5 lg:p-6 max-w-[1700px] w-full mx-auto">
           {activeTab === 'presenze' && <AttendanceMatrixView />}
+          {activeTab === 'riepilogo_presenze' && <DailyAttendanceSummaryView />}
           {activeTab === 'rpe_focus' && <RpeAndFocusView />}
           {activeTab === 'infortuni' && <InjuryReportView />}
           {activeTab === 'fisioterapia' && <PhysioNotesView />}
