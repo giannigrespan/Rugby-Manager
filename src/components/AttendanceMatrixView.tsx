@@ -43,6 +43,12 @@ const toDateKey = (d: Date): string => d.toISOString().slice(0, 10);
 
 const formatItDate = (d: Date): string => d.toLocaleDateString('it-IT', { day: '2-digit', month: 'long' });
 
+// DD/MM short display for the matrix session column header
+const formatDayMonthSlash = (dateStr: string): string => {
+  const [, month, day] = dateStr.split('-');
+  return `${day}/${month}`;
+};
+
 export const AttendanceMatrixView: React.FC = () => {
   const { players, sessions, attendances, updateAttendance, bulkMarkSessionAttendance, isSyncing, attendanceWindowOpen, setAttendanceWindowOpen } = useData();
   const { currentUser } = useAuth();
@@ -170,6 +176,24 @@ export const AttendanceMatrixView: React.FC = () => {
     const pct = (d: RugbyDepartment) => counts[d].total > 0 ? Math.round((counts[d].present / counts[d].total) * 100) : 0;
 
     return { avanti: pct('avanti'), trequarti: pct('trequarti') };
+  }, [attendances, players, weekSessions]);
+
+  // Absolute count of "avanti" / "trequarti" players present (present or late) per session,
+  // shown in the matrix column header instead of the daily attendance summary card.
+  const sessionDeptPresentCounts = useMemo(() => {
+    const playerDept = new Map<string, RugbyDepartment>(players.map(p => [p.id, p.department]));
+    const map = new Map<string, { avanti: number; trequarti: number }>();
+    weekSessions.forEach(s => map.set(s.id, { avanti: 0, trequarti: 0 }));
+
+    attendances.forEach(a => {
+      if (!map.has(a.sessionId)) return;
+      if (a.status !== 'present' && a.status !== 'late') return;
+      const dept = playerDept.get(a.playerId);
+      if (dept !== 'avanti' && dept !== 'trequarti') return;
+      map.get(a.sessionId)![dept]++;
+    });
+
+    return map;
   }, [attendances, players, weekSessions]);
 
   // Helper for single player presence percentage
@@ -614,20 +638,32 @@ export const AttendanceMatrixView: React.FC = () => {
                 </th>
 
                 {/* Session Columns */}
-                {weekSessions.map(session => (
-                  <th key={session.id} className="py-3 px-3 text-xs font-semibold text-gray-200 border-r border-[#2A2A2E] min-w-[120px] text-center">
-                    <div className="font-bold text-[#E0E0E1] text-xs">{session.date.slice(5)}</div>
-                    <div className="text-[10px] text-gray-400 truncate max-w-[110px]">{session.title}</div>
-                    <span className={`inline-block text-[9px] uppercase tracking-wider px-1.5 py-0.2 rounded font-semibold mt-0.5 ${
-                      session.type === 'scrum_lineout' ? 'bg-[#D4AF37]/20 text-[#D4AF37]' :
-                      session.type === 'kicking_specialists' ? 'bg-indigo-500/20 text-indigo-300' :
-                      session.type === 'match_captain_run' ? 'bg-rose-500/20 text-rose-300' :
-                      'bg-blue-500/20 text-blue-300'
-                    }`}>
-                      {session.type.replace('_', ' ')}
-                    </span>
-                  </th>
-                ))}
+                {weekSessions.map(session => {
+                  const deptCounts = sessionDeptPresentCounts.get(session.id) || { avanti: 0, trequarti: 0 };
+                  return (
+                    <th key={session.id} className="py-3 px-3 text-xs font-semibold text-gray-200 border-r border-[#2A2A2E] min-w-[120px] text-center">
+                      <div className="font-bold text-[#E0E0E1] text-xs">{formatDayMonthSlash(session.date)}</div>
+                      <div className="flex items-center justify-center gap-2 mt-1">
+                        <span className="flex items-center gap-1 text-[10px] font-bold text-[#D4AF37]" title="Avanti presenti">
+                          {deptCounts.avanti}
+                          <span className="text-[8px] font-semibold text-[#D4AF37]/70 uppercase">AV</span>
+                        </span>
+                        <span className="flex items-center gap-1 text-[10px] font-bold text-purple-400" title="Trequarti presenti">
+                          {deptCounts.trequarti}
+                          <span className="text-[8px] font-semibold text-purple-400/70 uppercase">TQ</span>
+                        </span>
+                      </div>
+                      <span className={`inline-block text-[9px] uppercase tracking-wider px-1.5 py-0.2 rounded font-semibold mt-1 ${
+                        session.type === 'scrum_lineout' ? 'bg-[#D4AF37]/20 text-[#D4AF37]' :
+                        session.type === 'kicking_specialists' ? 'bg-indigo-500/20 text-indigo-300' :
+                        session.type === 'match_captain_run' ? 'bg-rose-500/20 text-rose-300' :
+                        'bg-blue-500/20 text-blue-300'
+                      }`}>
+                        {session.type.replace('_', ' ')}
+                      </span>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             
