@@ -32,7 +32,6 @@ import { VillorbaLogo, VillorbaHedgehogIcon } from './VillorbaLogo';
 export type TabType =
   | 'home'
   | 'presenze'
-  | 'riepilogo_presenze'
   | 'rpe_focus'
   | 'infortuni' 
   | 'fisioterapia' 
@@ -98,14 +97,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           label: 'Matrice Presenze',
           subtitle: 'Appello & modifiche staff',
           icon: Calendar,
-          badge: null,
-          badgeColor: ''
-        },
-        {
-          id: 'riepilogo_presenze' as TabType,
-          label: 'Riepilogo Giornaliero',
-          subtitle: 'Presenti per Avanti & Trequarti',
-          icon: ClipboardList,
           badge: null,
           badgeColor: ''
         },
@@ -206,9 +197,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       // programmate: questa sezione non è disattivabile per il ruolo player.
       if (item.id === 'sessioni' && !isStaff) {
         return true;
-      }
-      if (item.id === 'riepilogo_presenze') {
-        return isSectionVisibleForUser('presenze', currentUser);
       }
       return isSectionVisibleForUser(item.id as any, currentUser);
     })
