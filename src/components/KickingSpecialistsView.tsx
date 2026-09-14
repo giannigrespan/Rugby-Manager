@@ -19,6 +19,17 @@ import {
   Edit2
 } from 'lucide-react';
 
+const WEEKLY_MIN_KICKING_MINUTES = 45;
+
+// Lunedì (inizio) della settimana ISO che contiene la data indicata (YYYY-MM-DD)
+const getMondayOfWeek = (dateStr: string): Date => {
+  const d = new Date(`${dateStr}T00:00:00`);
+  const day = d.getDay(); // 0 = domenica ... 6 = sabato
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diffToMonday);
+  return d;
+};
+
 export const KickingSpecialistsView: React.FC = () => {
   const { players, kickingSessions, addKickingSession, updateKickingSession, deleteKickingSession, isSyncing } = useData();
   const { currentUser } = useAuth();
@@ -28,6 +39,34 @@ export const KickingSpecialistsView: React.FC = () => {
   const visibleKickingSessions = isStaff
     ? kickingSessions
     : kickingSessions.filter(ks => ks.playerId === currentUser?.id);
+
+  // Minuti totali di lavoro al piede della settimana corrente (Lunedì-Domenica),
+  // per verificare il minimo richiesto di 45 minuti settimanali per atleta.
+  const weekStart = getMondayOfWeek(new Date().toISOString().slice(0, 10));
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate() + 6);
+  const isInCurrentWeek = (dateStr: string) => {
+    const d = new Date(`${dateStr}T00:00:00`);
+    return d >= weekStart && d <= weekEnd;
+  };
+  const myWeeklyMinutes = !isStaff
+    ? kickingSessions
+        .filter(ks => ks.playerId === currentUser?.id && isInCurrentWeek(ks.date))
+        .reduce((sum, ks) => sum + ks.durationMin, 0)
+    : 0;
+
+  // Progresso settimanale di tutta la rosa, visibile solo allo staff: quanti
+  // minuti di lavoro al piede ha registrato ogni atleta questa settimana rispetto al minimo.
+  const squadWeeklyProgress = isStaff
+    ? [...players]
+        .map(p => ({
+          player: p,
+          minutes: kickingSessions
+            .filter(ks => ks.playerId === p.id && isInCurrentWeek(ks.date))
+            .reduce((sum, ks) => sum + ks.durationMin, 0)
+        }))
+        .sort((a, b) => a.minutes - b.minutes || a.player.name.localeCompare(b.player.name))
+    : [];
 
   const canEditKick = (ks: KickingSession) => isStaff || ks.playerId === currentUser?.id;
 
@@ -307,6 +346,72 @@ export const KickingSpecialistsView: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Weekly Minimum Compliance Banner (athlete only) */}
+      {!isStaff && (
+        <div className={`rounded-xl p-4 shadow-xl flex items-center justify-between gap-3 border ${
+          myWeeklyMinutes >= WEEKLY_MIN_KICKING_MINUTES
+            ? 'bg-emerald-950/30 border-emerald-500/40'
+            : 'bg-amber-950/30 border-amber-500/40'
+        }`}>
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-lg ${myWeeklyMinutes >= WEEKLY_MIN_KICKING_MINUTES ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
+              <Clock className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-[#E0E0E1]">
+                Minuti di Calci Questa Settimana: {myWeeklyMinutes} / {WEEKLY_MIN_KICKING_MINUTES}
+              </p>
+              <p className="text-[11px] text-gray-400 mt-0.5">
+                {myWeeklyMinutes >= WEEKLY_MIN_KICKING_MINUTES
+                  ? 'Obiettivo settimanale raggiunto, complimenti!'
+                  : `Ti mancano ${WEEKLY_MIN_KICKING_MINUTES - myWeeklyMinutes} minuti per raggiungere il minimo richiesto (Lunedì-Domenica)`}
+              </p>
+            </div>
+          </div>
+          <div className="w-24 bg-[#1D1D21] h-2 rounded-full overflow-hidden border border-[#2A2A2E]">
+            <div
+              className={`h-full rounded-full ${myWeeklyMinutes >= WEEKLY_MIN_KICKING_MINUTES ? 'bg-emerald-500' : 'bg-amber-500'}`}
+              style={{ width: `${Math.min(100, Math.round((myWeeklyMinutes / WEEKLY_MIN_KICKING_MINUTES) * 100))}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Weekly Squad Progress Panel (staff only) */}
+      {isStaff && (
+        <div className="bg-[#121214] border border-[#2A2A2E] rounded-xl p-5 shadow-xl space-y-3">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-[#D4AF37]" />
+            <h3 className="text-xs font-bold text-gray-300 uppercase tracking-widest">
+              Minuti di Calci della Settimana (minimo {WEEKLY_MIN_KICKING_MINUTES}, Lunedì-Domenica)
+            </h3>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {squadWeeklyProgress.map(({ player, minutes }) => (
+              <div
+                key={player.id}
+                className={`flex items-center justify-between gap-3 px-3 py-2 rounded-lg border text-xs ${
+                  minutes >= WEEKLY_MIN_KICKING_MINUTES
+                    ? 'bg-emerald-950/20 border-emerald-500/30'
+                    : 'bg-amber-950/20 border-amber-500/30'
+                }`}
+              >
+                <span className="text-gray-300 truncate">
+                  #{player.jerseyNumber || '-'} {player.name}
+                </span>
+                <span className={`font-bold whitespace-nowrap ${minutes >= WEEKLY_MIN_KICKING_MINUTES ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  {minutes} / {WEEKLY_MIN_KICKING_MINUTES}
+                </span>
+              </div>
+            ))}
+
+            {squadWeeklyProgress.length === 0 && (
+              <p className="text-xs text-gray-500 italic col-span-full">Nessuna atleta in rosa.</p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Specialist Kicker Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
