@@ -57,6 +57,21 @@ export const KickingSpecialistsView: React.FC = () => {
         .reduce((sum, ks) => sum + ks.durationMin, 0)
     : 0;
 
+  // Progresso settimanale delle trequarti, visibile solo ai coach: quanti
+  // minuti di lavoro al piede ha registrato ogni atleta questa settimana
+  // rispetto al minimo richiesto.
+  const squadWeeklyProgress = isStaff
+    ? players
+        .filter(p => p.department === 'trequarti')
+        .map(p => ({
+          player: p,
+          minutes: kickingSessions
+            .filter(ks => ks.playerId === p.id && isInCurrentWeek(ks.date))
+            .reduce((sum, ks) => sum + ks.durationMin, 0)
+        }))
+        .sort((a, b) => a.minutes - b.minutes || a.player.name.localeCompare(b.player.name))
+    : [];
+
   const canEditKick = (ks: KickingSession) => isStaff || ks.playerId === currentUser?.id;
 
   const handleDeleteKick = (ks: KickingSession) => {
@@ -356,6 +371,41 @@ export const KickingSpecialistsView: React.FC = () => {
               className={`h-full rounded-full ${myWeeklyMinutes >= WEEKLY_MIN_KICKING_MINUTES ? 'bg-emerald-500' : 'bg-amber-500'}`}
               style={{ width: `${Math.min(100, Math.round((myWeeklyMinutes / WEEKLY_MIN_KICKING_MINUTES) * 100))}%` }}
             />
+          </div>
+        </div>
+      )}
+
+      {/* Weekly Squad Progress Panel (solo coach) */}
+      {isStaff && (
+        <div className="bg-[#121214] border border-[#2A2A2E] rounded-xl p-5 shadow-xl space-y-3">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-[#D4AF37]" />
+            <h3 className="text-xs font-bold text-gray-300 uppercase tracking-widest">
+              Minuti di Calci della Settimana (minimo {WEEKLY_MIN_KICKING_MINUTES}, Lunedì-Domenica)
+            </h3>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {squadWeeklyProgress.map(({ player, minutes }) => (
+              <div
+                key={player.id}
+                className={`flex items-center justify-between gap-3 px-3 py-2 rounded-lg border text-xs ${
+                  minutes >= WEEKLY_MIN_KICKING_MINUTES
+                    ? 'bg-emerald-950/20 border-emerald-500/30'
+                    : 'bg-amber-950/20 border-amber-500/30'
+                }`}
+              >
+                <span className="text-gray-300 truncate">
+                  #{player.jerseyNumber || '-'} {player.name}
+                </span>
+                <span className={`font-bold whitespace-nowrap ${minutes >= WEEKLY_MIN_KICKING_MINUTES ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  {minutes} / {WEEKLY_MIN_KICKING_MINUTES}
+                </span>
+              </div>
+            ))}
+
+            {squadWeeklyProgress.length === 0 && (
+              <p className="text-xs text-gray-500 italic col-span-full">Nessuna trequarti in rosa.</p>
+            )}
           </div>
         </div>
       )}
