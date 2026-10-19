@@ -172,13 +172,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Order by id for a stable, repeatable ordering: without it Postgres
         // can return rows in a different order on each refetch, making the
         // UI (cards/rows) visibly reshuffle every time a realtime event fires.
-        const { data, error } = await supabase.from(table).select('*').order('id', { ascending: true });
-        if (error) {
-          console.warn(`${table} Supabase subscription fallback:`, error);
-          setCloudSyncStatus(prev => (prev === 'synced' ? prev : 'local_fallback'));
-          return;
+        // Supabase caps a single response at 1000 rows, so page through the table
+        // or the newest rows (e.g. recent attendances) silently disappear.
+        const PAGE_SIZE = 1000;
+        const rows: T[] = [];
+        for (let from = 0; ; from += PAGE_SIZE) {
+          const { data, error } = await supabase
+            .from(table)
+            .select('*')
+            .order('id', { ascending: true })
+            .range(from, from + PAGE_SIZE - 1);
+          if (error) {
+            console.warn(`${table} Supabase subscription fallback:`, error);
+            setCloudSyncStatus(prev => (prev === 'synced' ? prev : 'local_fallback'));
+            return;
+          }
+          rows.push(...((data || []) as T[]));
+          if (!data || data.length < PAGE_SIZE) break;
         }
-        const rows = (data || []) as T[];
         setState(rows);
         localStorage.setItem(TABLE_STORAGE_KEYS[table], JSON.stringify(rows));
         if (markSyncedOnLoad) setCloudSyncStatus('synced');
